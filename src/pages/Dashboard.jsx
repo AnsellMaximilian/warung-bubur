@@ -1,7 +1,10 @@
+import PropTypes from "prop-types";
+
 export default function Dashboard({
   user,
+  isAdmin = false,
+  onNavigate = () => {},
   onLogout = () => {},
-  fallbackEmailHint,
 }) {
   return (
     <main className="min-h-screen bg-slate-900/95 py-16 text-slate-100">
@@ -9,11 +12,12 @@ export default function Dashboard({
         <header className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
           <div>
             <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-              Dashboard
+              Welcome, {user.name || "Guest"}
             </h1>
             <p className="mt-2 text-sm text-slate-300 sm:text-base">
-              You are authenticated with Appwrite. Use this space to manage
-              upcoming features.
+              {isAdmin
+                ? "You have administrator access. Manage products and menus below."
+                : "Review your details and preorder from tomorrow’s menu."}
             </p>
           </div>
           <button
@@ -24,15 +28,6 @@ export default function Dashboard({
             Log out
           </button>
         </header>
-
-        {fallbackEmailHint ? (
-          <div className="rounded-xl border border-amber-400/40 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
-            <strong className="font-semibold">Heads up:</strong> You registered
-            without an email. Use{" "}
-            <span className="font-mono text-amber-50">{fallbackEmailHint}</span>{" "}
-            as your sign-in email when logging in from another device.
-          </div>
-        ) : null}
 
         <section className="grid gap-6 rounded-2xl border border-white/10 bg-slate-900/80 p-8 shadow-2xl backdrop-blur sm:grid-cols-2">
           <div className="flex flex-col gap-1">
@@ -64,10 +59,62 @@ export default function Dashboard({
             <span className="text-xs uppercase tracking-wide text-slate-400">
               User ID
             </span>
-            <span className="text-lg font-medium text-white font-mono">
+            <span className="font-mono text-lg font-medium text-white">
               {user.$id}
             </span>
           </div>
+        </section>
+
+        <section className="grid gap-4 sm:grid-cols-2">
+          {isAdmin ? (
+            <>
+              <button
+                type="button"
+                onClick={() => onNavigate("admin-products")}
+                className="flex flex-col gap-2 rounded-2xl border border-pink-500/30 bg-pink-500/10 p-6 text-left transition hover:border-pink-400 hover:bg-pink-500/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-300"
+              >
+                <span className="text-lg font-semibold text-white">
+                  Manage Products
+                </span>
+                <span className="text-sm text-pink-100">
+                  Create, edit, or deactivate items available for daily menus.
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onNavigate("admin-menus")}
+                className="flex flex-col gap-2 rounded-2xl border border-indigo-400/30 bg-indigo-400/10 p-6 text-left transition hover:border-indigo-300 hover:bg-indigo-400/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-200"
+              >
+                <span className="text-lg font-semibold text-white">
+                  Configure Menus
+                </span>
+                <span className="text-sm text-indigo-100">
+                  Build tomorrow’s menu by selecting active products and publish
+                  updates.
+                </span>
+              </button>
+            </>
+          ) : (
+            <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-6 text-sm text-amber-100">
+              You have customer access. Menu creation is handled by admins. Head
+              to the daily menu to place your order.
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => onNavigate("menu")}
+            className="flex flex-col gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-6 text-left transition hover:border-emerald-300 hover:bg-emerald-400/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200"
+          >
+            <span className="text-lg font-semibold text-white">
+              View Daily Menu
+            </span>
+            <span className="text-sm text-emerald-100">
+              Preview tomorrow’s offerings and place an order with the available
+              products.
+            </span>
+          </button>
         </section>
 
         <section className="rounded-2xl border border-white/10 bg-slate-900/80 p-8 text-sm text-slate-300 shadow-2xl backdrop-blur">
@@ -91,3 +138,17 @@ export default function Dashboard({
     </main>
   );
 }
+
+Dashboard.propTypes = {
+  user: PropTypes.shape({
+    name: PropTypes.string,
+    email: PropTypes.string,
+    prefs: PropTypes.shape({
+      phone: PropTypes.string,
+    }),
+    $id: PropTypes.string,
+  }).isRequired,
+  isAdmin: PropTypes.bool,
+  onNavigate: PropTypes.func,
+  onLogout: PropTypes.func,
+};

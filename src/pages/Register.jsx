@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PropTypes from "prop-types";
 import { ID } from "appwrite";
 import { account } from "../lib/appwrite.js";
 
@@ -10,10 +11,8 @@ const blankForm = {
   confirmPassword: "",
 };
 
-const fallbackEmailFromPhone = (phone) => {
-  const digits = phone.replace(/\D/g, "") || `user-${Date.now()}`;
-  return `user-${digits}@appwrite.local`;
-};
+const emailPattern =
+  /^[^\s@]+@[a-zA-Z0-9._-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})*$/;
 
 export default function Register({
   onSuccess = () => {},
@@ -42,8 +41,11 @@ export default function Register({
     if (!formData.name.trim()) {
       nextErrors.name = "Name is required.";
     }
-    if (!formData.phone.trim()) {
-      nextErrors.phone = "Phone number is required.";
+    const trimmedEmail = formData.email.trim();
+    if (!trimmedEmail) {
+      nextErrors.email = "Email is required.";
+    } else if (!emailPattern.test(trimmedEmail)) {
+      nextErrors.email = "Enter a valid email with an active domain.";
     }
     if (!formData.password) {
       nextErrors.password = "Password is required.";
@@ -64,34 +66,30 @@ export default function Register({
     setFormError("");
     setSubmitting(true);
 
-    const trimmedEmail = formData.email.trim();
-    const emailToUse = trimmedEmail || fallbackEmailFromPhone(formData.phone);
-    const usedFallback = !trimmedEmail;
-
     try {
       await account.create(
         ID.unique(),
-        emailToUse,
+        trimmedEmail,
         formData.password,
         formData.name.trim()
       );
 
-      await account.createEmailPasswordSession(emailToUse, formData.password);
+      await account.createEmailPasswordSession(
+        trimmedEmail,
+        formData.password
+      );
 
       if (formData.phone.trim()) {
         try {
           await account.updatePreferences({ phone: formData.phone.trim() });
         } catch {
-          // Ignore preference update failures; user can retry later.
+          // Ignore optional preference update failures.
         }
       }
 
       const user = await account.get();
       setFormData(blankForm);
-      onSuccess({
-        user,
-        fallbackEmail: usedFallback ? emailToUse : null,
-      });
+      onSuccess(user);
     } catch (error) {
       const message =
         error?.message ||
@@ -110,8 +108,8 @@ export default function Register({
             Create an Appwrite Account
           </h1>
           <p className="mt-3 text-sm text-slate-300 sm:text-base">
-            Provide your details below. Email is optional; phone verification
-            is required to activate access.
+            Provide your details below. Email is required to activate access;
+            phone helps us contact you for order updates.
           </p>
         </header>
 
@@ -146,26 +144,8 @@ export default function Register({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-slate-200" htmlFor="phone">
-                Phone Number
-              </label>
-              <input
-                id="phone"
-                name="phone"
-                placeholder="+1 555 123 4567"
-                className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white outline-none transition focus:border-pink-400 focus:ring-2 focus:ring-pink-500/40"
-                value={formData.phone}
-                onChange={updateField("phone")}
-                required
-              />
-              {errors.phone ? (
-                <p className="text-xs text-pink-300">{errors.phone}</p>
-              ) : null}
-            </div>
-
-            <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-slate-200" htmlFor="email">
-                Email (optional)
+                Email
               </label>
               <input
                 id="email"
@@ -175,6 +155,24 @@ export default function Register({
                 className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white outline-none transition focus:border-pink-400 focus:ring-2 focus:ring-pink-500/40"
                 value={formData.email}
                 onChange={updateField("email")}
+                required
+              />
+              {errors.email ? (
+                <p className="text-xs text-pink-300">{errors.email}</p>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-slate-200" htmlFor="phone">
+                Phone Number (optional)
+              </label>
+              <input
+                id="phone"
+                name="phone"
+                placeholder="+1 555 123 4567"
+                className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white outline-none transition focus:border-pink-400 focus:ring-2 focus:ring-pink-500/40"
+                value={formData.phone}
+                onChange={updateField("phone")}
               />
             </div>
 
@@ -246,3 +244,8 @@ export default function Register({
     </main>
   );
 }
+
+Register.propTypes = {
+  onSuccess: PropTypes.func,
+  onSwitchToLogin: PropTypes.func,
+};

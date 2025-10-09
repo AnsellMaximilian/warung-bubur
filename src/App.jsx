@@ -1,9 +1,12 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import "./App.css";
 import { account } from "./lib/appwrite.js";
 import Register from "./pages/Register.jsx";
 import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
+import AdminProducts from "./pages/AdminProducts.jsx";
+import AdminMenus from "./pages/AdminMenus.jsx";
+import CustomerMenu from "./pages/CustomerMenu.jsx";
 
 const LoadingScreen = () => (
   <main className="grid min-h-screen place-items-center bg-slate-900 text-slate-100">
@@ -32,60 +35,87 @@ const LoadingScreen = () => (
   </main>
 );
 
+const adminTeamId = import.meta.env.VITE_APPWRITE_ADMIN_TEAM_ID;
+
 export default function App() {
   const [activeView, setActiveView] = useState("register");
   const [currentUser, setCurrentUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
-  const [fallbackEmailHint, setFallbackEmailHint] = useState(null);
   const [rememberedEmail, setRememberedEmail] = useState("");
 
+  const fetchAdminStatus = useCallback(async () => {
+    if (!adminTeamId) return false;
+    try {
+      const memberships = await account.listMemberships();
+      return (
+        memberships?.memberships?.some(
+          (membership) => membership.teamId === adminTeamId
+        ) ?? false
+      );
+    } catch {
+      return false;
+    }
+  }, [adminTeamId]);
+
+  const refreshAuthState = useCallback(async () => {
+    try {
+      const user = await account.get();
+      const adminStatus = await fetchAdminStatus();
+
+      setCurrentUser(user);
+      setIsAdmin(adminStatus);
+      setRememberedEmail(user.email || "");
+      setActiveView("dashboard");
+    } catch {
+      setCurrentUser(null);
+      setIsAdmin(false);
+    } finally {
+      setCheckingSession(false);
+    }
+  }, [fetchAdminStatus]);
+
   useEffect(() => {
-    let mounted = true;
+    refreshAuthState();
+  }, [refreshAuthState]);
 
-    const loadSession = async () => {
-      try {
-        const user = await account.get();
-        if (!mounted) return;
-        setCurrentUser(user);
-        setFallbackEmailHint(null);
-        setRememberedEmail(user.email || "");
-        setActiveView("dashboard");
-      } catch {
-        if (!mounted) return;
-        setCurrentUser(null);
-      } finally {
-        if (mounted) setCheckingSession(false);
-      }
-    };
+  useEffect(() => {
+    if (
+      !isAdmin &&
+      (activeView === "admin-products" || activeView === "admin-menus")
+    ) {
+      setActiveView("dashboard");
+    }
+  }, [isAdmin, activeView]);
 
-    loadSession();
-
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  const handleRegistrationSuccess = ({ user, fallbackEmail }) => {
-    setCurrentUser(user);
-    setFallbackEmailHint(fallbackEmail);
-    setRememberedEmail(fallbackEmail || user.email || "");
-    setActiveView("dashboard");
+  const handleNavigate = (view) => {
+    if (
+      !isAdmin &&
+      (view === "admin-products" || view === "admin-menus")
+    ) {
+      return;
+    }
+    setActiveView(view);
   };
 
-  const handleLoginSuccess = (user) => {
-    setCurrentUser(user);
-    setFallbackEmailHint(null);
-    setRememberedEmail(user.email || "");
-    setActiveView("dashboard");
+  const handleRegistrationSuccess = async () => {
+    setCheckingSession(true);
+    await refreshAuthState();
+  };
+
+  const handleLoginSuccess = async () => {
+    setCheckingSession(true);
+    await refreshAuthState();
   };
 
   const handleLogout = async () => {
     try {
       await account.deleteSession("current");
     } catch {
-      // If session deletion fails, proceed with local cleanup.
+      // Ignore logout errors; session may already be invalidated.
     } finally {
       setCurrentUser(null);
+      setIsAdmin(false);
       setActiveView("login");
     }
   };
@@ -95,11 +125,41 @@ export default function App() {
   }
 
   if (currentUser) {
+    if (activeView === "admin-products") {
+      return (
+        <AdminProducts
+          onNavigate={handleNavigate}
+          onLogout={handleLogout}
+        />
+      );
+    }
+
+    if (activeView === "admin-menus") {
+      return (
+        <AdminMenus
+          onNavigate={handleNavigate}
+          onLogout={handleLogout}
+        />
+      );
+    }
+
+    if (activeView === "menu") {
+      return (
+        <CustomerMenu
+          user={currentUser}
+          isAdmin={isAdmin}
+          onNavigate={handleNavigate}
+          onLogout={handleLogout}
+        />
+      );
+    }
+
     return (
       <Dashboard
         user={currentUser}
+        isAdmin={isAdmin}
+        onNavigate={handleNavigate}
         onLogout={handleLogout}
-        fallbackEmailHint={fallbackEmailHint}
       />
     );
   }

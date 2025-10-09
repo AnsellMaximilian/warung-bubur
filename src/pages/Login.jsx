@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import { account } from "../lib/appwrite.js";
 
 const blankForm = {
@@ -141,3 +142,9 @@ export default function Login({
     </main>
   );
 }
+
+Login.propTypes = {
+  onSuccess: PropTypes.func,
+  onSwitchToRegister: PropTypes.func,
+  defaultEmail: PropTypes.string,
+};

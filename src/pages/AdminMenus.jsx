@@ -89,10 +89,16 @@ export default function AdminMenus({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const availableProducts = useMemo(
-    () => products.filter((product) => product.status ?? false),
-    [products],
-  );
+  const availableProducts = useMemo(() => {
+    const isActive = (value) => {
+      if (value === false || value === "false" || value === "inactive") {
+        return false;
+      }
+      return true;
+    };
+
+    return products.filter((product) => isActive(product.status));
+  }, [products]);
 
   const toggleFormProduct = (productId) => {
     setFormError("");

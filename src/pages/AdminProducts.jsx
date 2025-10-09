@@ -62,13 +62,26 @@ export default function AdminProducts({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const normalizeStatusValue = (value) => {
+    if (typeof value === "boolean") return value;
+    if (value === "true" || value === "active") return true;
+    if (value === "false" || value === "inactive") return false;
+    return Boolean(value);
+  };
+
   const updateCreateField = (field) => (event) => {
-    const value = event.target.value;
+    const value =
+      field === "status"
+        ? normalizeStatusValue(event.target.value)
+        : event.target.value;
     setCreateForm((current) => ({ ...current, [field]: value }));
   };
 
   const updateEditField = (field) => (event) => {
-    const value = event.target.value;
+    const value =
+      field === "status"
+        ? normalizeStatusValue(event.target.value)
+        : event.target.value;
     setEditingProduct((current) =>
       current ? { ...current, [field]: value } : current,
     );
@@ -109,7 +122,7 @@ export default function AdminProducts({
         {
           name: trimmedName,
           price: parsedPrice,
-          status: createForm.status,
+          status: Boolean(createForm.status),
         },
       );
       setCreateForm({ ...emptyProductForm });
@@ -132,7 +145,7 @@ export default function AdminProducts({
         typeof product.price === "number"
           ? product.price.toString()
           : (product.price ?? ""),
-      status: product.status ?? false,
+      status: normalizeStatusValue(product.status ?? true),
     });
     setEditError("");
   };
@@ -168,7 +181,7 @@ export default function AdminProducts({
         {
           name: trimmedName,
           price: parsedPrice,
-          status: editingProduct.status,
+          status: Boolean(editingProduct.status),
         },
       );
       setEditingProduct(null);
@@ -279,12 +292,12 @@ export default function AdminProducts({
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-slate-200">Status</span>
               <select
-                value={createForm.status}
+                value={createForm.status ? "true" : "false"}
                 onChange={updateCreateField("status")}
                 className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-white outline-none transition focus:border-pink-400 focus:ring-2 focus:ring-pink-500/40"
               >
-                <option value={true}>Active</option>
-                <option value={false}>Inactive</option>
+                <option value="true">Active</option>
+                <option value="false">Inactive</option>
               </select>
             </label>
 
@@ -342,34 +355,39 @@ export default function AdminProducts({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-slate-200">
-                  {products.map((product) => (
-                    <tr key={product.$id}>
-                      <td className="px-3 py-2">{product.name}</td>
-                      <td className="px-3 py-2">
-                        {formatRupiah(product.price)}
-                      </td>
-                      <td className="px-3 py-2">
-                        {product.status ? (
-                          <span className="rounded-md bg-emerald-500/20 px-2 py-1 text-xs text-emerald-200">
-                            Active
-                          </span>
-                        ) : (
-                          <span className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300">
-                            Inactive
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
-                        <button
-                          type="button"
-                          className="text-sm font-medium text-pink-300 underline-offset-4 hover:underline"
-                          onClick={() => handleEditStart(product)}
-                        >
-                          Edit
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {products.map((product) => {
+                    const isActive = normalizeStatusValue(
+                      product.status ?? true,
+                    );
+                    return (
+                      <tr key={product.$id}>
+                        <td className="px-3 py-2">{product.name}</td>
+                        <td className="px-3 py-2">
+                          {formatRupiah(product.price)}
+                        </td>
+                        <td className="px-3 py-2">
+                          {isActive ? (
+                            <span className="rounded-md bg-emerald-500/20 px-2 py-1 text-xs text-emerald-200">
+                              Active
+                            </span>
+                          ) : (
+                            <span className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300">
+                              Inactive
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          <button
+                            type="button"
+                            className="text-sm font-medium text-pink-300 underline-offset-4 hover:underline"
+                            onClick={() => handleEditStart(product)}
+                          >
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -410,12 +428,12 @@ export default function AdminProducts({
               <label className="flex flex-col gap-1 text-sm">
                 <span className="text-slate-200">Status</span>
                 <select
-                  value={editingProduct.status}
+                  value={editingProduct.status ? "true" : "false"}
                   onChange={updateEditField("status")}
                   className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-white outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/40"
                 >
-                  <option value={true}>Active</option>
-                  <option value={false}>Inactive</option>
+                  <option value="true">Active</option>
+                  <option value="false">Inactive</option>
                 </select>
               </label>
 

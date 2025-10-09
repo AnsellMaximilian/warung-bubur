@@ -5,11 +5,10 @@ import { databases } from "../lib/appwrite.js";
 import { formatRupiah } from "../lib/formatters.js";
 
 const databaseId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-const productsCollectionId =
-  import.meta.env.VITE_APPWRITE_PRODUCTS_COLLECTION_ID;
+const productsCollectionId = import.meta.env
+  .VITE_APPWRITE_PRODUCTS_COLLECTION_ID;
 const menusCollectionId = import.meta.env.VITE_APPWRITE_MENUS_COLLECTION_ID;
-const ordersCollectionId =
-  import.meta.env.VITE_APPWRITE_ORDERS_COLLECTION_ID;
+const ordersCollectionId = import.meta.env.VITE_APPWRITE_ORDERS_COLLECTION_ID;
 
 const tomorrowKey = () => {
   const tomorrow = new Date();
@@ -38,9 +37,9 @@ export default function CustomerMenu({
         databaseId &&
           productsCollectionId &&
           menusCollectionId &&
-          ordersCollectionId
+          ordersCollectionId,
       ),
-    []
+    [],
   );
 
   const targetDate = useMemo(() => tomorrowKey(), []);
@@ -49,7 +48,7 @@ export default function CustomerMenu({
     const response = await databases.listDocuments(
       databaseId,
       productsCollectionId,
-      [Query.orderAsc("name")]
+      [Query.orderAsc("name")],
     );
     setProducts(response.documents);
   };
@@ -59,10 +58,10 @@ export default function CustomerMenu({
       databaseId,
       menusCollectionId,
       [
-        Query.equal("servingDate", targetDate),
-        Query.equal("isPublished", true),
+        Query.equal("menuDate", targetDate),
+        Query.equal("open", true),
         Query.limit(1),
-      ]
+      ],
     );
     setMenu(response.documents[0] ?? null);
   };
@@ -109,9 +108,7 @@ export default function CustomerMenu({
     if (!menu) return [];
 
     return (menu.productIds || [])
-      .map((productId) =>
-        products.find((product) => product.$id === productId)
-      )
+      .map((productId) => products.find((product) => product.$id === productId))
       .filter(Boolean);
   }, [menu, products]);
 
@@ -153,16 +150,18 @@ export default function CustomerMenu({
         ordersCollectionId,
         ID.unique(),
         {
-          servingDate: menu.servingDate,
+          menuDate: menu.menuDate,
           items,
           userId: user.$id,
           userName: user.name,
           status: "pending",
           placedAt: new Date().toISOString(),
-        }
+        },
       );
 
-      setOrderSuccess("Order recorded. Check the Appwrite console for details.");
+      setOrderSuccess(
+        "Order recorded. Check the Appwrite console for details.",
+      );
       const resetQuantities = Object.keys(quantities).reduce((acc, id) => {
         acc[id] = 0;
         return acc;
@@ -256,13 +255,13 @@ export default function CustomerMenu({
                 Serving on {targetDate}
               </h2>
               <p className="text-xs uppercase tracking-wide text-slate-400">
-                {menu?.isPublished === false
+                {menu?.open === false
                   ? "Draft menu"
                   : loading
-                  ? "Loading menu…"
-                  : menu
-                  ? "Published"
-                  : "Awaiting publication"}
+                    ? "Loading menu…"
+                    : menu
+                      ? "Published"
+                      : "Awaiting publication"}
               </p>
             </div>
             <button

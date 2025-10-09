@@ -13,9 +13,9 @@ const defaultMenuForm = () => {
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   return {
-    servingDate: tomorrow.toISOString().slice(0, 10),
+    menuDate: tomorrow.toISOString().slice(0, 10),
     productIds: [],
-    isPublished: true,
+    open: true,
   };
 };
 
@@ -59,7 +59,7 @@ export default function AdminMenus({
       const response = await databases.listDocuments(
         databaseId,
         menusCollectionId,
-        [Query.orderAsc("servingDate")],
+        [Query.orderAsc("menuDate")],
       );
       setMenus(response.documents);
     } catch (err) {
@@ -88,6 +88,56 @@ export default function AdminMenus({
     bootstrap();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const toDateInputValue = (raw) => {
+    if (!raw) return "";
+    if (raw instanceof Date) {
+      return raw.toISOString().slice(0, 10);
+    }
+    if (typeof raw === "string") {
+      if (raw.includes("T")) {
+        return raw.split("T")[0];
+      }
+      if (raw.includes(" ")) {
+        return raw.split(" ")[0];
+      }
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+        return raw;
+      }
+    }
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) {
+      return "";
+    }
+    return parsed.toISOString().slice(0, 10);
+  };
+
+  const formatMenuDate = (raw) => {
+    if (!raw) return "Tanggal tidak diketahui";
+
+    let date;
+    if (typeof raw === "string") {
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+        const [year, month, day] = raw.split("-").map(Number);
+        date = new Date(year, month - 1, day);
+      } else {
+        date = new Date(raw);
+      }
+    } else {
+      date = new Date(raw);
+    }
+
+    if (Number.isNaN(date.getTime())) {
+      return raw;
+    }
+
+    return date.toLocaleDateString("id-ID", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  };
 
   const availableProducts = useMemo(() => {
     const isActive = (value) => {
@@ -131,12 +181,12 @@ export default function AdminMenus({
     event.preventDefault();
     setFormError("");
 
-    if (!form.servingDate) {
-      setFormError("Pick a serving date.");
+    if (!form.menuDate) {
+      setFormError("Pick a menu date.");
       return;
     }
 
-    if (new Date(form.servingDate) < new Date().setHours(0, 0, 0, 0)) {
+    if (new Date(form.menuDate) < new Date().setHours(0, 0, 0, 0)) {
       setFormError("Menu date must be today or later.");
       return;
     }
@@ -154,9 +204,9 @@ export default function AdminMenus({
         menusCollectionId,
         ID.unique(),
         {
-          servingDate: form.servingDate,
+          menuDate: form.menuDate,
           productIds: form.productIds,
-          isPublished: Boolean(form.isPublished),
+          open: Boolean(form.open),
         },
       );
       setForm(defaultMenuForm());
@@ -174,16 +224,15 @@ export default function AdminMenus({
   const handleEditStart = (menu) => {
     setEditingMenu({
       id: menu.$id,
-      servingDate: menu.servingDate ?? "",
+      menuDate: toDateInputValue(menu.menuDate ?? ""),
       productIds: Array.isArray(menu.productIds) ? menu.productIds : [],
-      isPublished: menu.isPublished !== false,
+      open: menu.open !== false,
     });
     setEditError("");
   };
 
   const handleEditChange = (field) => (event) => {
-    const value =
-      field === "isPublished" ? event.target.checked : event.target.value;
+    const value = field === "open" ? event.target.checked : event.target.value;
     setEditingMenu((current) =>
       current ? { ...current, [field]: value } : current,
     );
@@ -198,7 +247,7 @@ export default function AdminMenus({
     event.preventDefault();
     if (!editingMenu) return;
 
-    if (!editingMenu.servingDate) {
+    if (!editingMenu.menuDate) {
       setEditError("Serving date is required.");
       return;
     }
@@ -216,9 +265,9 @@ export default function AdminMenus({
         menusCollectionId,
         editingMenu.id,
         {
-          servingDate: editingMenu.servingDate,
+          menuDate: editingMenu.menuDate,
           productIds: editingMenu.productIds,
-          isPublished: Boolean(editingMenu.isPublished),
+          open: Boolean(editingMenu.open),
         },
       );
       setEditingMenu(null);
@@ -316,14 +365,14 @@ export default function AdminMenus({
           <form className="mt-4 space-y-6" onSubmit={handleCreate}>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-1 text-sm">
-                <span className="text-slate-200">Serving date</span>
+                <span className="text-slate-200">Menu Date</span>
                 <input
                   type="date"
-                  value={form.servingDate}
+                  value={form.menuDate}
                   onChange={(event) =>
                     setForm((current) => ({
                       ...current,
-                      servingDate: event.target.value,
+                      menuDate: event.target.value,
                     }))
                   }
                   className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-white outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/40"
@@ -334,11 +383,11 @@ export default function AdminMenus({
               <label className="flex items-center gap-2 text-sm text-slate-200">
                 <input
                   type="checkbox"
-                  checked={form.isPublished}
+                  checked={form.open}
                   onChange={(event) =>
                     setForm((current) => ({
                       ...current,
-                      isPublished: event.target.checked,
+                      open: event.target.checked,
                     }))
                   }
                   className="h-4 w-4 rounded border-white/20 bg-slate-800 text-indigo-500 focus:ring-indigo-500/40"
@@ -429,10 +478,10 @@ export default function AdminMenus({
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <h3 className="text-xl font-semibold text-white">
-                          {menu.servingDate}
+                          {formatMenuDate(menu.menuDate)}
                         </h3>
                         <p className="text-xs uppercase tracking-wide text-slate-400">
-                          {menu.isPublished === false ? "Draft" : "Published"}
+                          {menu.open === false ? "Draft" : "Published"}
                         </p>
                       </div>
                       <button
@@ -472,11 +521,11 @@ export default function AdminMenus({
             <form className="mt-4 space-y-6" onSubmit={handleUpdate}>
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="flex flex-col gap-1 text-sm">
-                  <span className="text-slate-200">Serving date</span>
+                  <span className="text-slate-200">Menu date</span>
                   <input
                     type="date"
-                    value={editingMenu.servingDate}
-                    onChange={handleEditChange("servingDate")}
+                    value={editingMenu.menuDate}
+                    onChange={handleEditChange("menuDate")}
                     className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-white outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40"
                     required
                   />
@@ -485,8 +534,8 @@ export default function AdminMenus({
                 <label className="flex items-center gap-2 text-sm text-slate-200">
                   <input
                     type="checkbox"
-                    checked={editingMenu.isPublished}
-                    onChange={handleEditChange("isPublished")}
+                    checked={editingMenu.open}
+                    onChange={handleEditChange("open")}
                     className="h-4 w-4 rounded border-white/20 bg-slate-800 text-emerald-500 focus:ring-emerald-500/40"
                   />
                   Published

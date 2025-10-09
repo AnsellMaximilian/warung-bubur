@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import "./App.css";
-import { account } from "./lib/appwrite.js";
+import { account, teams } from "./lib/appwrite.js";
 import Register from "./pages/Register.jsx";
 import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
@@ -47,13 +47,14 @@ export default function App() {
   const fetchAdminStatus = useCallback(async () => {
     if (!adminTeamId) return false;
     try {
-      const memberships = await account.listMemberships();
+      const memberships = await teams.listMemberships(adminTeamId);
       return (
         memberships?.memberships?.some(
-          (membership) => membership.teamId === adminTeamId
+          (membership) => membership.teamId === adminTeamId,
         ) ?? false
       );
-    } catch {
+    } catch (e) {
+      console.log(e);
       return false;
     }
   }, [adminTeamId]);
@@ -89,10 +90,7 @@ export default function App() {
   }, [isAdmin, activeView]);
 
   const handleNavigate = (view) => {
-    if (
-      !isAdmin &&
-      (view === "admin-products" || view === "admin-menus")
-    ) {
+    if (!isAdmin && (view === "admin-products" || view === "admin-menus")) {
       return;
     }
     setActiveView(view);
@@ -127,20 +125,12 @@ export default function App() {
   if (currentUser) {
     if (activeView === "admin-products") {
       return (
-        <AdminProducts
-          onNavigate={handleNavigate}
-          onLogout={handleLogout}
-        />
+        <AdminProducts onNavigate={handleNavigate} onLogout={handleLogout} />
       );
     }
 
     if (activeView === "admin-menus") {
-      return (
-        <AdminMenus
-          onNavigate={handleNavigate}
-          onLogout={handleLogout}
-        />
-      );
+      return <AdminMenus onNavigate={handleNavigate} onLogout={handleLogout} />;
     }
 
     if (activeView === "menu") {

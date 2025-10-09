@@ -45,24 +45,6 @@ export default function Dashboard({
               {user.email || "Not provided"}
             </span>
           </div>
-
-          <div className="flex flex-col gap-1">
-            <span className="text-xs uppercase tracking-wide text-slate-400">
-              Phone
-            </span>
-            <span className="text-lg font-medium text-white">
-              {user.prefs?.phone || "Not captured"}
-            </span>
-          </div>
-
-          <div className="flex flex-col gap-1">
-            <span className="text-xs uppercase tracking-wide text-slate-400">
-              User ID
-            </span>
-            <span className="font-mono text-lg font-medium text-white">
-              {user.$id}
-            </span>
-          </div>
         </section>
 
         <section className="grid gap-4 sm:grid-cols-2">

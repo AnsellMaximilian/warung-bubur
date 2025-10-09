@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { ID, Query } from "appwrite";
 import { databases } from "../lib/appwrite.js";
+import { formatRupiah } from "../lib/formatters.js";
 
 const databaseId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 const productsCollectionId =
@@ -296,9 +297,7 @@ export default function CustomerMenu({
                         {product.name}
                       </h3>
                       <p className="text-sm text-slate-300">
-                        {typeof product.price === "number"
-                          ? `$${product.price.toFixed(2)}`
-                          : product.price}
+                        {formatRupiah(product.price)}
                       </p>
                     </div>
                     <label className="flex items-center gap-2 text-sm text-slate-200">

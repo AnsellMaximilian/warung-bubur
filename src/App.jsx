@@ -44,25 +44,22 @@ export default function App() {
   const [checkingSession, setCheckingSession] = useState(true);
   const [rememberedEmail, setRememberedEmail] = useState("");
 
-  const fetchAdminStatus = useCallback(async () => {
-    if (!adminTeamId) return false;
-    try {
-      const memberships = await teams.listMemberships(adminTeamId);
-      return (
-        memberships?.memberships?.some(
-          (membership) => membership.teamId === adminTeamId,
-        ) ?? false
-      );
-    } catch (e) {
-      console.log(e);
-      return false;
-    }
-  }, [adminTeamId]);
-
   const refreshAuthState = useCallback(async () => {
     try {
       const user = await account.get();
-      const adminStatus = await fetchAdminStatus();
+      let adminStatus = false;
+
+      if (adminTeamId) {
+        try {
+          const memberships = await teams.listMemberships(adminTeamId);
+          adminStatus =
+            memberships?.memberships?.some(
+              (membership) => membership.teamId === adminTeamId,
+            ) ?? false;
+        } catch {
+          adminStatus = false;
+        }
+      }
 
       setCurrentUser(user);
       setIsAdmin(adminStatus);
@@ -74,7 +71,7 @@ export default function App() {
     } finally {
       setCheckingSession(false);
     }
-  }, [fetchAdminStatus]);
+  }, []);
 
   useEffect(() => {
     refreshAuthState();

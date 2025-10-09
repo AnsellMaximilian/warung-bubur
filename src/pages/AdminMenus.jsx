@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { ID, Query } from "appwrite";
 import { databases } from "../lib/appwrite.js";
+import { formatRupiah } from "../lib/formatters.js";
 
 const databaseId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-const productsCollectionId =
-  import.meta.env.VITE_APPWRITE_PRODUCTS_COLLECTION_ID;
+const productsCollectionId = import.meta.env
+  .VITE_APPWRITE_PRODUCTS_COLLECTION_ID;
 const menusCollectionId = import.meta.env.VITE_APPWRITE_MENUS_COLLECTION_ID;
 
 const defaultMenuForm = () => {
@@ -34,7 +35,7 @@ export default function AdminMenus({
 
   const isConfigReady = useMemo(
     () => Boolean(databaseId && productsCollectionId && menusCollectionId),
-    []
+    [],
   );
 
   const fetchProducts = async () => {
@@ -42,7 +43,7 @@ export default function AdminMenus({
       const response = await databases.listDocuments(
         databaseId,
         productsCollectionId,
-        [Query.orderAsc("name")]
+        [Query.orderAsc("name")],
       );
       setProducts(response.documents);
     } catch (err) {
@@ -58,7 +59,7 @@ export default function AdminMenus({
       const response = await databases.listDocuments(
         databaseId,
         menusCollectionId,
-        [Query.orderAsc("servingDate")]
+        [Query.orderAsc("servingDate")],
       );
       setMenus(response.documents);
     } catch (err) {
@@ -89,8 +90,8 @@ export default function AdminMenus({
   }, []);
 
   const availableProducts = useMemo(
-    () => products.filter((product) => product.isActive !== false),
-    [products]
+    () => products.filter((product) => product.status ?? false),
+    [products],
   );
 
   const toggleFormProduct = (productId) => {
@@ -150,7 +151,7 @@ export default function AdminMenus({
           servingDate: form.servingDate,
           productIds: form.productIds,
           isPublished: Boolean(form.isPublished),
-        }
+        },
       );
       setForm(defaultMenuForm());
       await fetchMenus();
@@ -177,7 +178,9 @@ export default function AdminMenus({
   const handleEditChange = (field) => (event) => {
     const value =
       field === "isPublished" ? event.target.checked : event.target.value;
-    setEditingMenu((current) => (current ? { ...current, [field]: value } : current));
+    setEditingMenu((current) =>
+      current ? { ...current, [field]: value } : current,
+    );
   };
 
   const handleEditCancel = () => {
@@ -210,7 +213,7 @@ export default function AdminMenus({
           servingDate: editingMenu.servingDate,
           productIds: editingMenu.productIds,
           isPublished: Boolean(editingMenu.isPublished),
-        }
+        },
       );
       setEditingMenu(null);
       await fetchMenus();
@@ -365,9 +368,7 @@ export default function AdminMenus({
                           {product.name}
                         </span>
                         <span className="text-xs text-slate-400">
-                          {typeof product.price === "number"
-                            ? `$${product.price.toFixed(2)}`
-                            : product.price}
+                          {formatRupiah(product.price)}
                         </span>
                       </span>
                     </label>
@@ -403,12 +404,16 @@ export default function AdminMenus({
           ) : (
             <div className="mt-6 space-y-4">
               {menus.map((menu) => {
-                const productBadges = (menu.productIds || []).map((productId) => {
-                  const product = products.find((item) => item.$id === productId);
-                  return product
-                    ? product.name
-                    : `Unmapped product (${productId.slice(0, 6)}…)`;
-                });
+                const productBadges = (menu.productIds || []).map(
+                  (productId) => {
+                    const product = products.find(
+                      (item) => item.$id === productId,
+                    );
+                    return product
+                      ? product.name
+                      : `Unmapped product (${productId.slice(0, 6)}…)`;
+                  },
+                );
 
                 return (
                   <div
@@ -488,8 +493,8 @@ export default function AdminMenus({
                 </span>
                 {availableProducts.length === 0 ? (
                   <p className="mt-2 text-xs text-slate-400">
-                    No active products found. Enable items in the product catalog
-                    first.
+                    No active products found. Enable items in the product
+                    catalog first.
                   </p>
                 ) : (
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -509,9 +514,7 @@ export default function AdminMenus({
                             {product.name}
                           </span>
                           <span className="text-xs text-slate-400">
-                            {typeof product.price === "number"
-                              ? `$${product.price.toFixed(2)}`
-                              : product.price}
+                            {formatRupiah(product.price)}
                           </span>
                         </span>
                       </label>

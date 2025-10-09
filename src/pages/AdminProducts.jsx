@@ -2,15 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { ID, Query } from "appwrite";
 import { databases } from "../lib/appwrite.js";
+import { formatRupiah } from "../lib/formatters.js";
 
 const databaseId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
-const productsCollectionId =
-  import.meta.env.VITE_APPWRITE_PRODUCTS_COLLECTION_ID;
+const productsCollectionId = import.meta.env
+  .VITE_APPWRITE_PRODUCTS_COLLECTION_ID;
 
 const emptyProductForm = {
   name: "",
   price: "",
-  isActive: true,
+  status: true,
 };
 
 export default function AdminProducts({
@@ -21,14 +22,14 @@ export default function AdminProducts({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
-  const [createForm, setCreateForm] = useState(emptyProductForm);
+  const [createForm, setCreateForm] = useState(() => ({ ...emptyProductForm }));
   const [createError, setCreateError] = useState("");
   const [editingProduct, setEditingProduct] = useState(null);
   const [editError, setEditError] = useState("");
 
   const isConfigReady = useMemo(
     () => Boolean(databaseId && productsCollectionId),
-    []
+    [],
   );
 
   const loadProducts = async () => {
@@ -43,7 +44,7 @@ export default function AdminProducts({
       const response = await databases.listDocuments(
         databaseId,
         productsCollectionId,
-        [Query.orderAsc("name")]
+        [Query.orderAsc("$createdAt")],
       );
       setProducts(response.documents);
     } catch (err) {
@@ -62,25 +63,23 @@ export default function AdminProducts({
   }, []);
 
   const updateCreateField = (field) => (event) => {
-    const value =
-      field === "isActive" ? event.target.checked : event.target.value;
+    const value = event.target.value;
     setCreateForm((current) => ({ ...current, [field]: value }));
   };
 
   const updateEditField = (field) => (event) => {
-    const value =
-      field === "isActive" ? event.target.checked : event.target.value;
+    const value = event.target.value;
     setEditingProduct((current) =>
-      current ? { ...current, [field]: value } : current
+      current ? { ...current, [field]: value } : current,
     );
   };
 
   const parsePrice = (price) => {
-    const value = Number(price);
+    const value = Number.parseInt(price, 10);
     if (Number.isNaN(value) || value < 0) {
       return null;
     }
-    return Number(value.toFixed(2));
+    return value;
   };
 
   const handleCreate = async (event) => {
@@ -96,7 +95,7 @@ export default function AdminProducts({
     }
 
     if (parsedPrice === null) {
-      setCreateError("Enter a price of zero or more, using numbers only.");
+      setCreateError("Enter a price of zero or more (whole rupiah).");
       return;
     }
 
@@ -110,10 +109,10 @@ export default function AdminProducts({
         {
           name: trimmedName,
           price: parsedPrice,
-          isActive: Boolean(createForm.isActive),
-        }
+          status: createForm.status,
+        },
       );
-      setCreateForm(emptyProductForm);
+      setCreateForm({ ...emptyProductForm });
       await loadProducts();
     } catch (err) {
       const message =
@@ -132,8 +131,8 @@ export default function AdminProducts({
       price:
         typeof product.price === "number"
           ? product.price.toString()
-          : product.price ?? "",
-      isActive: product.isActive !== false,
+          : (product.price ?? ""),
+      status: product.status ?? false,
     });
     setEditError("");
   };
@@ -156,7 +155,7 @@ export default function AdminProducts({
     }
 
     if (parsedPrice === null) {
-      setEditError("Enter a valid price.");
+      setEditError("Enter a valid price in whole rupiah.");
       return;
     }
 
@@ -169,8 +168,8 @@ export default function AdminProducts({
         {
           name: trimmedName,
           price: parsedPrice,
-          isActive: Boolean(editingProduct.isActive),
-        }
+          status: editingProduct.status,
+        },
       );
       setEditingProduct(null);
       await loadProducts();
@@ -247,7 +246,10 @@ export default function AdminProducts({
 
         <section className="rounded-2xl border border-white/10 bg-slate-900/80 p-8 shadow-2xl backdrop-blur">
           <h2 className="text-lg font-semibold text-white">Add product</h2>
-          <form className="mt-4 grid gap-4 sm:grid-cols-[2fr_1fr_auto]" onSubmit={handleCreate}>
+          <form
+            className="mt-4 grid gap-4 sm:grid-cols-[2fr_1fr_1fr]"
+            onSubmit={handleCreate}
+          >
             <label className="flex flex-col gap-1 text-sm">
               <span className="text-slate-200">Name</span>
               <input
@@ -264,24 +266,26 @@ export default function AdminProducts({
               <span className="text-slate-200">Price</span>
               <input
                 type="number"
-                step="0.01"
+                step="1"
                 min="0"
                 value={createForm.price}
                 onChange={updateCreateField("price")}
                 className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-white outline-none transition focus:border-pink-400 focus:ring-2 focus:ring-pink-500/40"
-                placeholder="5.50"
+                placeholder="15000"
                 required
               />
             </label>
 
-            <label className="flex items-center justify-end gap-2 text-sm text-slate-200">
-              <input
-                type="checkbox"
-                checked={createForm.isActive}
-                onChange={updateCreateField("isActive")}
-                className="h-4 w-4 rounded border-white/20 bg-slate-800 text-pink-500 focus:ring-pink-500/40"
-              />
-              Active
+            <label className="flex flex-col gap-1 text-sm">
+              <span className="text-slate-200">Status</span>
+              <select
+                value={createForm.status}
+                onChange={updateCreateField("status")}
+                className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-white outline-none transition focus:border-pink-400 focus:ring-2 focus:ring-pink-500/40"
+              >
+                <option value={true}>Active</option>
+                <option value={false}>Inactive</option>
+              </select>
             </label>
 
             {createError ? (
@@ -302,7 +306,9 @@ export default function AdminProducts({
 
         <section className="rounded-2xl border border-white/10 bg-slate-900/80 p-8 shadow-2xl backdrop-blur">
           <div className="flex items-center justify-between gap-4">
-            <h2 className="text-lg font-semibold text-white">Existing products</h2>
+            <h2 className="text-lg font-semibold text-white">
+              Existing products
+            </h2>
             <button
               type="button"
               onClick={loadProducts}
@@ -340,18 +346,16 @@ export default function AdminProducts({
                     <tr key={product.$id}>
                       <td className="px-3 py-2">{product.name}</td>
                       <td className="px-3 py-2">
-                        {typeof product.price === "number"
-                          ? `$${product.price.toFixed(2)}`
-                          : product.price}
+                        {formatRupiah(product.price)}
                       </td>
                       <td className="px-3 py-2">
-                        {product.isActive === false ? (
-                          <span className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300">
-                            Inactive
-                          </span>
-                        ) : (
+                        {product.status ? (
                           <span className="rounded-md bg-emerald-500/20 px-2 py-1 text-xs text-emerald-200">
                             Active
+                          </span>
+                        ) : (
+                          <span className="rounded-md bg-slate-800 px-2 py-1 text-xs text-slate-300">
+                            Inactive
                           </span>
                         )}
                       </td>
@@ -375,7 +379,10 @@ export default function AdminProducts({
         {editingProduct ? (
           <section className="rounded-2xl border border-white/10 bg-slate-900/80 p-8 shadow-2xl backdrop-blur">
             <h2 className="text-lg font-semibold text-white">Edit product</h2>
-            <form className="mt-4 grid gap-4 sm:grid-cols-[2fr_1fr_auto]" onSubmit={handleUpdate}>
+            <form
+              className="mt-4 grid gap-4 sm:grid-cols-[2fr_1fr_1fr]"
+              onSubmit={handleUpdate}
+            >
               <label className="flex flex-col gap-1 text-sm">
                 <span className="text-slate-200">Name</span>
                 <input
@@ -391,7 +398,7 @@ export default function AdminProducts({
                 <span className="text-slate-200">Price</span>
                 <input
                   type="number"
-                  step="0.01"
+                  step="1"
                   min="0"
                   value={editingProduct.price}
                   onChange={updateEditField("price")}
@@ -400,14 +407,16 @@ export default function AdminProducts({
                 />
               </label>
 
-              <label className="flex items-center justify-end gap-2 text-sm text-slate-200">
-                <input
-                  type="checkbox"
-                  checked={editingProduct.isActive}
-                  onChange={updateEditField("isActive")}
-                  className="h-4 w-4 rounded border-white/20 bg-slate-800 text-indigo-500 focus:ring-indigo-500/40"
-                />
-                Active
+              <label className="flex flex-col gap-1 text-sm">
+                <span className="text-slate-200">Status</span>
+                <select
+                  value={editingProduct.status}
+                  onChange={updateEditField("status")}
+                  className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-white outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/40"
+                >
+                  <option value={true}>Active</option>
+                  <option value={false}>Inactive</option>
+                </select>
               </label>
 
               {editError ? (

@@ -76,6 +76,34 @@ export default function Dashboard({
                   updates.
                 </span>
               </button>
+
+              <button
+                type="button"
+                onClick={() => onNavigate("admin-order-items")}
+                className="flex flex-col gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-6 text-left transition hover:border-emerald-300 hover:bg-emerald-400/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200"
+              >
+                <span className="text-lg font-semibold text-white">
+                  Today’s Order Items
+                </span>
+                <span className="text-sm text-emerald-100">
+                  Review everything prepared for today’s menu and coordinate the
+                  kitchen workflow.
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onNavigate("admin-orders")}
+                className="flex flex-col gap-2 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-6 text-left transition hover:border-amber-300 hover:bg-amber-400/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-200"
+              >
+                <span className="text-lg font-semibold text-white">
+                  Orders & Payments
+                </span>
+                <span className="text-sm text-amber-100">
+                  Track paid and unpaid orders to keep your reconciliation up to
+                  date.
+                </span>
+              </button>
             </>
           ) : (
             <div className="rounded-2xl border border-amber-400/30 bg-amber-400/10 p-6 text-sm text-amber-100">

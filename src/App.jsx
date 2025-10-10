@@ -6,6 +6,8 @@ import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import AdminProducts from "./pages/AdminProducts.jsx";
 import AdminMenus from "./pages/AdminMenus.jsx";
+import AdminOrderItems from "./pages/AdminOrderItems.jsx";
+import AdminOrders from "./pages/AdminOrders.jsx";
 import CustomerMenu from "./pages/CustomerMenu.jsx";
 
 const LoadingScreen = () => (
@@ -78,16 +80,25 @@ export default function App() {
   }, [refreshAuthState]);
 
   useEffect(() => {
-    if (
-      !isAdmin &&
-      (activeView === "admin-products" || activeView === "admin-menus")
-    ) {
+    const adminOnlyViews = [
+      "admin-products",
+      "admin-menus",
+      "admin-order-items",
+      "admin-orders",
+    ];
+    if (!isAdmin && adminOnlyViews.includes(activeView)) {
       setActiveView("dashboard");
     }
   }, [isAdmin, activeView]);
 
   const handleNavigate = (view) => {
-    if (!isAdmin && (view === "admin-products" || view === "admin-menus")) {
+    const adminOnlyViews = [
+      "admin-products",
+      "admin-menus",
+      "admin-order-items",
+      "admin-orders",
+    ];
+    if (!isAdmin && adminOnlyViews.includes(view)) {
       return;
     }
     setActiveView(view);
@@ -128,6 +139,21 @@ export default function App() {
 
     if (activeView === "admin-menus") {
       return <AdminMenus onNavigate={handleNavigate} onLogout={handleLogout} />;
+    }
+
+    if (activeView === "admin-order-items") {
+      return (
+        <AdminOrderItems
+          onNavigate={handleNavigate}
+          onLogout={handleLogout}
+        />
+      );
+    }
+
+    if (activeView === "admin-orders") {
+      return (
+        <AdminOrders onNavigate={handleNavigate} onLogout={handleLogout} />
+      );
     }
 
     if (activeView === "menu") {

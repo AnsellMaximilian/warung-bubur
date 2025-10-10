@@ -32,6 +32,8 @@ export default function CustomerMenu({
   const [orderError, setOrderError] = useState("");
   const [orderSuccess, setOrderSuccess] = useState("");
   const [savingOrder, setSavingOrder] = useState(false);
+  const [orderItemsByProduct, setOrderItemsByProduct] = useState({});
+  const [notesByProduct, setNotesByProduct] = useState({});
 
   const configReady = useMemo(
     () =>
@@ -97,13 +99,20 @@ export default function CustomerMenu({
 
   useEffect(() => {
     if (menu && Array.isArray(menu.productIds)) {
-      const defaults = menu.productIds.reduce((acc, id) => {
+      const defaultQuantities = menu.productIds.reduce((acc, id) => {
         acc[id] = 0;
         return acc;
       }, {});
-      setQuantities(defaults);
+      const defaultNotes = menu.productIds.reduce((acc, id) => {
+        acc[id] = "";
+        return acc;
+      }, {});
+      setQuantities(defaultQuantities);
+      setNotesByProduct(defaultNotes);
     } else {
       setQuantities({});
+      setNotesByProduct({});
+      setOrderItemsByProduct({});
     }
   }, [menu]);
 
@@ -115,12 +124,95 @@ export default function CustomerMenu({
       .filter(Boolean);
   }, [menu, products]);
 
+  useEffect(() => {
+    const loadExistingOrder = async () => {
+      if (!configReady || !menu || !user?.$id) {
+        setOrderItemsByProduct({});
+        setNotesByProduct({});
+        return;
+      }
+
+      try {
+        const response = await databases.listDocuments(
+          databaseId,
+          ordersCollectionId,
+          [
+            Query.equal("menuDate", menu.menuDate),
+            Query.equal("userId", user.$id),
+            Query.limit(1),
+          ],
+        );
+
+        if (response.total === 0) {
+          setOrderItemsByProduct({});
+          return;
+        }
+
+        const orderDoc = response.documents[0];
+
+        const itemsResponse = await databases.listDocuments(
+          databaseId,
+          orderItemsCollectionId,
+          [Query.equal("orderId", orderDoc.$id)],
+        );
+
+        const nextItemMap = {};
+        const nextQuantities = (menu.productIds || []).reduce((acc, id) => {
+          acc[id] = 0;
+          return acc;
+        }, {});
+        const nextNotes = (menu.productIds || []).reduce((acc, id) => {
+          acc[id] = "";
+          return acc;
+        }, {});
+
+        itemsResponse.documents.forEach((item) => {
+          nextItemMap[item.productId.$id] = item;
+          if (item.productId.$id in nextQuantities) {
+            const value = Number(item.quantity) || 0;
+            nextQuantities[item.productId.$id] = value;
+          }
+          if (item.productId.$id in nextNotes) {
+            nextNotes[item.productId.$id] = item.note || "";
+          }
+        });
+
+        setOrderError("");
+        setOrderItemsByProduct(nextItemMap);
+        setQuantities((current) => ({ ...current, ...nextQuantities }));
+        setNotesByProduct((current) => ({ ...current, ...nextNotes }));
+      } catch (err) {
+        const message =
+          err?.message ||
+          "Unable to retrieve existing order details. You can still create a new one.";
+        setOrderError(message);
+        setOrderItemsByProduct({});
+        setNotesByProduct({});
+      }
+    };
+
+    loadExistingOrder();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [configReady, menu?.menuDate, user?.$id]);
+
   const handleQuantityChange = (productId, value) => {
     const numeric = Number(value);
     if (Number.isNaN(numeric) || numeric < 0) {
       return;
     }
     setQuantities((current) => ({ ...current, [productId]: numeric }));
+  };
+
+  const adjustQuantity = (productId, delta) => {
+    setQuantities((current) => {
+      const existing = Number(current[productId]) || 0;
+      const nextValue = Math.max(0, existing + delta);
+      return { ...current, [productId]: nextValue };
+    });
+  };
+
+  const handleNoteChange = (productId, value) => {
+    setNotesByProduct((current) => ({ ...current, [productId]: value }));
   };
 
   const handleSubmitOrder = async (event) => {
@@ -138,6 +230,7 @@ export default function CustomerMenu({
       .map(([productId, qty]) => ({
         productId,
         quantity: qty,
+        note: notesByProduct[productId] || "",
       }));
 
     if (items.length === 0) {
@@ -152,7 +245,7 @@ export default function CustomerMenu({
     let isNewOrder = false;
 
     try {
-      const existingOrder = await databases.listDocuments(
+      const existingOrderResponse = await databases.listDocuments(
         databaseId,
         ordersCollectionId,
         [
@@ -162,8 +255,8 @@ export default function CustomerMenu({
         ],
       );
 
-      if (existingOrder.total > 0) {
-        orderDocument = existingOrder.documents[0];
+      if (existingOrderResponse.total > 0) {
+        orderDocument = existingOrderResponse.documents[0];
       } else {
         orderDocument = await databases.createDocument(
           databaseId,
@@ -183,31 +276,66 @@ export default function CustomerMenu({
       const productIndex = new Map(
         menuProducts.map((product) => [product.$id, product]),
       );
+      const nextItemsMap = { ...orderItemsByProduct };
+      const processedProductIds = new Set();
 
-      for (const { productId, quantity } of items) {
+      for (const { productId, quantity, note } of items) {
+        processedProductIds.add(productId);
+        const existingItem = orderItemsByProduct[productId];
         const product = productIndex.get(productId);
-        const itemDocument = await databases.createDocument(
-          databaseId,
-          orderItemsCollectionId,
-          ID.unique(),
-          {
-            orderId: orderDocument.$id,
-            quantity,
-            productName: product?.name ?? "",
-            price: typeof product?.price === "number" ? product.price : 0,
-          },
-        );
-        createdItemIds.push(itemDocument.$id);
+        const payload = {
+          orderId: orderDocument.$id,
+          productId,
+          quantity,
+          productName: product?.name ?? "",
+          price: typeof product?.price === "number" ? product.price : 0,
+          note: note,
+        };
+
+        if (!existingItem) {
+          const itemDocument = await databases.createDocument(
+            databaseId,
+            orderItemsCollectionId,
+            ID.unique(),
+            payload,
+          );
+          createdItemIds.push(itemDocument.$id);
+          nextItemsMap[productId] = itemDocument;
+        } else if (
+          (Number(existingItem.quantity) || 0) !== quantity ||
+          (existingItem.note || "") !== note
+        ) {
+          const updatedItem = await databases.updateDocument(
+            databaseId,
+            orderItemsCollectionId,
+            existingItem.$id,
+            payload,
+          );
+          nextItemsMap[productId] = updatedItem;
+        }
       }
 
+      // No deletion to preserve existing selections; ensure map keeps previous items.
+
       setOrderSuccess(
-        "Order recorded. Check the Appwrite console for details.",
+        isNewOrder
+          ? "Order recorded. Check the Appwrite console for details."
+          : "Order updated successfully.",
       );
-      const resetQuantities = Object.keys(quantities).reduce((acc, id) => {
-        acc[id] = 0;
+
+      const updatedQuantities = (menu.productIds || []).reduce((acc, id) => {
+        const item = nextItemsMap[id];
+        acc[id] = item ? Number(item.quantity) || 0 : 0;
         return acc;
       }, {});
-      setQuantities(resetQuantities);
+      setQuantities(updatedQuantities);
+      const updatedNotes = (menu.productIds || []).reduce((acc, id) => {
+        const item = nextItemsMap[id];
+        acc[id] = item ? item.note || "" : "";
+        return acc;
+      }, {});
+      setNotesByProduct(updatedNotes);
+      setOrderItemsByProduct(nextItemsMap);
     } catch (err) {
       if (isNewOrder && orderDocument?.$id) {
         try {
@@ -314,6 +442,68 @@ export default function CustomerMenu({
           </section>
         ) : null}
 
+        {Object.keys(orderItemsByProduct).length > 0 ? (
+          <section className="rounded-2xl border border-white/10 bg-slate-900/80 p-6 shadow-2xl backdrop-blur">
+            <h2 className="text-lg font-semibold text-white">
+              Pesanan kamu untuk menu ini
+            </h2>
+            <p className="mt-1 text-xs uppercase tracking-wide text-slate-400">
+              Terakhir diperbarui:{" "}
+              {(() => {
+                const items = Object.values(orderItemsByProduct);
+                const timestamps = items
+                  .map((item) => item.$updatedAt || item.$createdAt)
+                  .filter(Boolean);
+                if (timestamps.length === 0) return "Baru dibuat";
+
+                const newest = timestamps.reduce(
+                  (latest, current) =>
+                    new Date(current) > new Date(latest) ? current : latest,
+                  timestamps[0],
+                );
+
+                return new Date(newest).toLocaleString("id-ID");
+              })()}
+            </p>
+            <ul className="mt-4 space-y-2 text-sm text-slate-200">
+              {Object.values(orderItemsByProduct).map((item) => {
+                const product = menuProducts.find(
+                  (prod) => prod.$id === item.productId,
+                );
+                return (
+                  <li
+                    key={item.productId.$id || item.$id}
+                    className="flex flex-col gap-1 rounded-lg border border-white/10 bg-slate-800/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <div>
+                      <p className="font-medium text-white">
+                        {product?.name || item.productName || "Produk"}
+                      </p>
+                      <p className="text-xs text-slate-400">
+                        {formatRupiah(
+                          typeof product?.price === "number"
+                            ? product.price
+                            : typeof item.unitPrice === "number"
+                              ? item.unitPrice
+                              : item.price,
+                        )}
+                      </p>
+                      {item.note ? (
+                        <p className="text-xs text-slate-400">
+                          Catatan: {item.note}
+                        </p>
+                      ) : null}
+                    </div>
+                    <span className="text-sm text-slate-200">
+                      x {item.quantity}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        ) : null}
+
         <section className="rounded-2xl border border-white/10 bg-slate-900/80 p-8 shadow-2xl backdrop-blur">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -355,27 +545,65 @@ export default function CustomerMenu({
                 {menuProducts.map((product) => (
                   <div
                     key={product.$id}
-                    className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-800/80 p-4 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-800/80 p-4"
                   >
-                    <div>
-                      <h3 className="text-lg font-semibold text-white">
-                        {product.name}
-                      </h3>
-                      <p className="text-sm text-slate-300">
-                        {formatRupiah(product.price)}
-                      </p>
+                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h3 className="text-lg font-semibold text-white">
+                          {product.name}
+                        </h3>
+                        <p className="text-sm text-slate-300">
+                          {formatRupiah(product.price)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-slate-200">
+                        <span className="sr-only sm:not-sr-only">Quantity</span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => adjustQuantity(product.$id, -1)}
+                            className="flex h-9 w-9 items-center justify-center rounded-md border border-white/10 bg-slate-900 text-lg text-white transition hover:border-emerald-400 hover:text-emerald-300"
+                            aria-label={`Kurangi ${product.name}`}
+                          >
+                            −
+                          </button>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={quantities[product.$id] ?? 0}
+                            onChange={(event) =>
+                              handleQuantityChange(
+                                product.$id,
+                                event.target.value,
+                              )
+                            }
+                            className="h-9 w-16 rounded-md border border-white/10 bg-slate-900 px-3 text-center text-white outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => adjustQuantity(product.$id, 1)}
+                            className="flex h-9 w-9 items-center justify-center rounded-md border border-white/10 bg-slate-900 text-lg text-white transition hover:border-emerald-400 hover:text-emerald-300"
+                            aria-label={`Tambah ${product.name}`}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                    <label className="flex items-center gap-2 text-sm text-slate-200">
-                      <span>Quantity</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={quantities[product.$id] ?? 0}
+
+                    <label className="flex flex-col gap-1 text-sm text-slate-200">
+                      <span>Catatan (opsional)</span>
+                      <textarea
+                        rows={2}
+                        value={notesByProduct[product.$id] ?? ""}
                         onChange={(event) =>
-                          handleQuantityChange(product.$id, event.target.value)
+                          handleNoteChange(product.$id, event.target.value)
                         }
-                        className="h-10 w-20 rounded-lg border border-white/10 bg-slate-900 px-3 text-white outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40"
+                        placeholder="Contoh: tanpa gula, ekstra es"
+                        className="w-full rounded-md border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/30"
                       />
                     </label>
                   </div>

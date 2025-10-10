@@ -265,9 +265,7 @@ export default function CustomerMenu({
           {
             menuDate: menu.menuDate,
             userId: user.$id,
-            status: "pending",
             payment: false,
-            placedAt: new Date().toISOString(),
           },
         );
         isNewOrder = true;

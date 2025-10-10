@@ -9,6 +9,8 @@ const productsCollectionId = import.meta.env
   .VITE_APPWRITE_PRODUCTS_COLLECTION_ID;
 const menusCollectionId = import.meta.env.VITE_APPWRITE_MENUS_COLLECTION_ID;
 const ordersCollectionId = import.meta.env.VITE_APPWRITE_ORDERS_COLLECTION_ID;
+const orderItemsCollectionId = import.meta.env
+  .VITE_APPWRITE_ORDER_ITEMS_COLLECTION_ID;
 
 const tomorrowKey = () => {
   const tomorrow = new Date();
@@ -37,7 +39,8 @@ export default function CustomerMenu({
         databaseId &&
           productsCollectionId &&
           menusCollectionId &&
-          ordersCollectionId,
+          ordersCollectionId &&
+          orderItemsCollectionId,
       ),
     [],
   );
@@ -144,20 +147,58 @@ export default function CustomerMenu({
 
     setSavingOrder(true);
 
+    let orderDocument = null;
+    let createdItemIds = [];
+    let isNewOrder = false;
+
     try {
-      await databases.createDocument(
+      const existingOrder = await databases.listDocuments(
         databaseId,
         ordersCollectionId,
-        ID.unique(),
-        {
-          menuDate: menu.menuDate,
-          items,
-          userId: user.$id,
-          userName: user.name,
-          status: "pending",
-          placedAt: new Date().toISOString(),
-        },
+        [
+          Query.equal("menuDate", menu.menuDate),
+          Query.equal("userId", user.$id),
+          Query.limit(1),
+        ],
       );
+
+      if (existingOrder.total > 0) {
+        orderDocument = existingOrder.documents[0];
+      } else {
+        orderDocument = await databases.createDocument(
+          databaseId,
+          ordersCollectionId,
+          ID.unique(),
+          {
+            menuDate: menu.menuDate,
+            userId: user.$id,
+            status: "pending",
+            payment: false,
+            placedAt: new Date().toISOString(),
+          },
+        );
+        isNewOrder = true;
+      }
+
+      const productIndex = new Map(
+        menuProducts.map((product) => [product.$id, product]),
+      );
+
+      for (const { productId, quantity } of items) {
+        const product = productIndex.get(productId);
+        const itemDocument = await databases.createDocument(
+          databaseId,
+          orderItemsCollectionId,
+          ID.unique(),
+          {
+            orderId: orderDocument.$id,
+            quantity,
+            productName: product?.name ?? "",
+            price: typeof product?.price === "number" ? product.price : 0,
+          },
+        );
+        createdItemIds.push(itemDocument.$id);
+      }
 
       setOrderSuccess(
         "Order recorded. Check the Appwrite console for details.",
@@ -168,6 +209,30 @@ export default function CustomerMenu({
       }, {});
       setQuantities(resetQuantities);
     } catch (err) {
+      if (isNewOrder && orderDocument?.$id) {
+        try {
+          await databases.deleteDocument(
+            databaseId,
+            ordersCollectionId,
+            orderDocument.$id,
+          );
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+
+      if (createdItemIds.length > 0) {
+        await Promise.allSettled(
+          createdItemIds.map((itemId) =>
+            databases.deleteDocument(
+              databaseId,
+              orderItemsCollectionId,
+              itemId,
+            ),
+          ),
+        );
+      }
+
       const message =
         err?.message ||
         "Unable to submit your order. Confirm database permissions and try again.";
@@ -185,9 +250,10 @@ export default function CustomerMenu({
           <p className="text-sm text-slate-300">
             Define `VITE_APPWRITE_DATABASE_ID`,
             `VITE_APPWRITE_PRODUCTS_COLLECTION_ID`,
-            `VITE_APPWRITE_MENUS_COLLECTION_ID`, and
-            `VITE_APPWRITE_ORDERS_COLLECTION_ID` in your environment to enable
-            menu ordering.
+            `VITE_APPWRITE_MENUS_COLLECTION_ID`,
+            `VITE_APPWRITE_ORDERS_COLLECTION_ID`, and
+            `VITE_APPWRITE_ORDER_ITEMS_COLLECTION_ID` in your environment to
+            enable menu ordering.
           </p>
           <div className="flex justify-center gap-3">
             <button

@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { ID, Query } from "appwrite";
 import { databases } from "../lib/appwrite.js";
 import { formatRupiah } from "../lib/formatters.js";
+import { formatMenuDate } from "../lib/utils.js";
 
 const databaseId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 const productsCollectionId = import.meta.env
@@ -11,12 +12,6 @@ const menusCollectionId = import.meta.env.VITE_APPWRITE_MENUS_COLLECTION_ID;
 const ordersCollectionId = import.meta.env.VITE_APPWRITE_ORDERS_COLLECTION_ID;
 const orderItemsCollectionId = import.meta.env
   .VITE_APPWRITE_ORDER_ITEMS_COLLECTION_ID;
-
-const tomorrowKey = () => {
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  return tomorrow.toISOString().slice(0, 10);
-};
 
 export default function CustomerMenu({
   user,
@@ -47,8 +42,6 @@ export default function CustomerMenu({
     [],
   );
 
-  const targetDate = useMemo(() => tomorrowKey(), []);
-
   const loadProducts = async () => {
     const response = await databases.listDocuments(
       databaseId,
@@ -62,11 +55,7 @@ export default function CustomerMenu({
     const response = await databases.listDocuments(
       databaseId,
       menusCollectionId,
-      [
-        Query.equal("menuDate", targetDate),
-        Query.equal("open", true),
-        Query.limit(1),
-      ],
+      [Query.equal("open", true), Query.limit(1)],
     );
     setMenu(response.documents[0] ?? null);
   };
@@ -506,7 +495,7 @@ export default function CustomerMenu({
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="text-lg font-semibold text-white">
-                Serving on {targetDate}
+                Serving on {formatMenuDate(menu?.menuDate)}
               </h2>
               <p className="text-xs uppercase tracking-wide text-slate-400">
                 {menu?.open === false

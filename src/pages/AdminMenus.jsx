@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { ID, Query } from "appwrite";
 import { databases } from "../lib/appwrite.js";
 import { formatRupiah } from "../lib/formatters.js";
+import { formatMenuDate } from "../lib/utils.js";
 
 const databaseId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 const productsCollectionId = import.meta.env
@@ -110,33 +111,6 @@ export default function AdminMenus({
       return "";
     }
     return parsed.toISOString().slice(0, 10);
-  };
-
-  const formatMenuDate = (raw) => {
-    if (!raw) return "Tanggal tidak diketahui";
-
-    let date;
-    if (typeof raw === "string") {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-        const [year, month, day] = raw.split("-").map(Number);
-        date = new Date(year, month - 1, day);
-      } else {
-        date = new Date(raw);
-      }
-    } else {
-      date = new Date(raw);
-    }
-
-    if (Number.isNaN(date.getTime())) {
-      return raw;
-    }
-
-    return date.toLocaleDateString("id-ID", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
   };
 
   const availableProducts = useMemo(() => {

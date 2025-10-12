@@ -40,7 +40,7 @@ const LoadingScreen = () => (
 const adminTeamId = import.meta.env.VITE_APPWRITE_ADMIN_TEAM_ID;
 
 export default function App() {
-  const [activeView, setActiveView] = useState("register");
+  const [activeView, setActiveView] = useState("login");
   const [currentUser, setCurrentUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
@@ -188,20 +188,20 @@ export default function App() {
     );
   }
 
-  if (activeView === "login") {
+  if (activeView === "register") {
     return (
-      <Login
-        onSuccess={handleLoginSuccess}
-        onSwitchToRegister={() => setActiveView("register")}
-        defaultEmail={rememberedEmail}
+      <Register
+        onSuccess={handleRegistrationSuccess}
+        onSwitchToLogin={() => setActiveView("login")}
       />
     );
   }
 
   return (
-    <Register
-      onSuccess={handleRegistrationSuccess}
-      onSwitchToLogin={() => setActiveView("login")}
+    <Login
+      onSuccess={handleLoginSuccess}
+      onSwitchToRegister={() => setActiveView("register")}
+      defaultEmail={rememberedEmail}
     />
   );
 }

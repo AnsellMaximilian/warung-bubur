@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import PropTypes from "prop-types";
 import { ID } from "appwrite";
 import { account } from "../lib/appwrite.js";
@@ -101,21 +101,21 @@ export default function Register({
   };
 
   return (
-    <main className="min-h-screen bg-slate-900/95 py-16 text-slate-100">
+    <main className="min-h-screen bg-rose-50 py-16 text-slate-900">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-4 sm:px-8">
         <header className="text-center">
           <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
             Create an Appwrite Account
           </h1>
-          <p className="mt-3 text-sm text-slate-300 sm:text-base">
+          <p className="mt-3 text-sm text-slate-600 sm:text-base">
             Provide your details below. Email is required to activate access;
             phone helps us contact you for order updates.
           </p>
         </header>
 
-        <section className="rounded-2xl border border-white/10 bg-slate-900/80 shadow-2xl backdrop-blur">
+        <section className="rounded-2xl border border-slate-200 bg-white shadow-lg">
           <form
-            className="flex flex-col gap-6 p-6 sm:p-10"
+            className="relative flex flex-col gap-6 p-6 sm:p-10"
             onSubmit={handleSubmit}
             noValidate
           >
@@ -126,25 +126,25 @@ export default function Register({
             ) : null}
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-slate-200" htmlFor="name">
+              <label className="text-sm font-medium text-slate-700" htmlFor="name">
                 Full Name
               </label>
               <input
                 id="name"
                 name="name"
                 placeholder="Ada Lovelace"
-                className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white outline-none transition focus:border-pink-400 focus:ring-2 focus:ring-pink-500/40"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-rose-300 focus:ring-2 focus:ring-rose-300/40"
                 value={formData.name}
                 onChange={updateField("name")}
                 required
               />
               {errors.name ? (
-                <p className="text-xs text-pink-300">{errors.name}</p>
+                <p className="text-xs text-rose-700">{errors.name}</p>
               ) : null}
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-slate-200" htmlFor="email">
+              <label className="text-sm font-medium text-slate-700" htmlFor="email">
                 Email
               </label>
               <input
@@ -152,25 +152,25 @@ export default function Register({
                 name="email"
                 type="email"
                 placeholder="you@example.com"
-                className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white outline-none transition focus:border-pink-400 focus:ring-2 focus:ring-pink-500/40"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-rose-300 focus:ring-2 focus:ring-rose-300/40"
                 value={formData.email}
                 onChange={updateField("email")}
                 required
               />
               {errors.email ? (
-                <p className="text-xs text-pink-300">{errors.email}</p>
+                <p className="text-xs text-rose-700">{errors.email}</p>
               ) : null}
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-slate-200" htmlFor="phone">
+              <label className="text-sm font-medium text-slate-700" htmlFor="phone">
                 Phone Number (optional)
               </label>
               <input
                 id="phone"
                 name="phone"
                 placeholder="+1 555 123 4567"
-                className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white outline-none transition focus:border-pink-400 focus:ring-2 focus:ring-pink-500/40"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-rose-300 focus:ring-2 focus:ring-rose-300/40"
                 value={formData.phone}
                 onChange={updateField("phone")}
               />
@@ -178,7 +178,7 @@ export default function Register({
 
             <div className="flex flex-col gap-1.5">
               <label
-                className="text-sm font-medium text-slate-200"
+                className="text-sm font-medium text-slate-700"
                 htmlFor="password"
               >
                 Password
@@ -188,19 +188,19 @@ export default function Register({
                 name="password"
                 type="password"
                 placeholder="At least 8 characters"
-                className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white outline-none transition focus:border-pink-400 focus:ring-2 focus:ring-pink-500/40"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-rose-300 focus:ring-2 focus:ring-rose-300/40"
                 value={formData.password}
                 onChange={updateField("password")}
                 required
               />
               {errors.password ? (
-                <p className="text-xs text-pink-300">{errors.password}</p>
+                <p className="text-xs text-rose-700">{errors.password}</p>
               ) : null}
             </div>
 
             <div className="flex flex-col gap-1.5">
               <label
-                className="text-sm font-medium text-slate-200"
+                className="text-sm font-medium text-slate-700"
                 htmlFor="confirmPassword"
               >
                 Confirm Password
@@ -210,29 +210,29 @@ export default function Register({
                 name="confirmPassword"
                 type="password"
                 placeholder="Repeat your password"
-                className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white outline-none transition focus:border-pink-400 focus:ring-2 focus:ring-pink-500/40"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-rose-300 focus:ring-2 focus:ring-rose-300/40"
                 value={formData.confirmPassword}
                 onChange={updateField("confirmPassword")}
                 required
               />
               {errors.confirmPassword ? (
-                <p className="text-xs text-pink-300">{errors.confirmPassword}</p>
+                <p className="text-xs text-rose-700">{errors.confirmPassword}</p>
               ) : null}
             </div>
 
             <button
               type="submit"
-              className="mt-2 inline-flex items-center justify-center rounded-lg bg-pink-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-pink-500/30 transition hover:bg-pink-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-300 disabled:cursor-not-allowed disabled:bg-pink-500/50"
+              className="mt-2 inline-flex items-center justify-center rounded-lg bg-pink-500 px-5 py-2.5 text-sm font-semibold text-slate-900 shadow-lg shadow-pink-500/30 transition hover:bg-pink-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-300 disabled:cursor-not-allowed disabled:bg-pink-500/50"
               disabled={submitting}
             >
               {submitting ? "Creating account..." : "Create Account"}
             </button>
 
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500">
               Already registered?{" "}
               <button
                 type="button"
-                className="font-medium text-pink-300 underline-offset-4 hover:underline"
+                className="font-medium text-rose-700 underline-offset-4 hover:underline"
                 onClick={onSwitchToLogin}
               >
                 Log in instead
@@ -249,3 +249,4 @@ Register.propTypes = {
   onSuccess: PropTypes.func,
   onSwitchToLogin: PropTypes.func,
 };
+

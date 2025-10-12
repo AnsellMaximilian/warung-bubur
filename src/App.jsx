@@ -131,6 +131,17 @@ export default function App() {
   }
 
   if (currentUser) {
+    // Customers see the daily menu directly on dashboard
+    if (!isAdmin && (activeView === "dashboard" || activeView === "menu")) {
+      return (
+        <CustomerMenu
+          user={currentUser}
+          isAdmin={isAdmin}
+          onNavigate={handleNavigate}
+          onLogout={handleLogout}
+        />
+      );
+    }
     if (activeView === "admin-products") {
       return (
         <AdminProducts onNavigate={handleNavigate} onLogout={handleLogout} />
@@ -194,3 +205,4 @@ export default function App() {
     />
   );
 }
+

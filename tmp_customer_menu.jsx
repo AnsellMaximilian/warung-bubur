@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { ID, Query } from "appwrite";
 import { databases } from "../lib/appwrite.js";
@@ -30,10 +30,6 @@ export default function CustomerMenu({
   const [orderItemsByProduct, setOrderItemsByProduct] = useState({});
   const [notesByProduct, setNotesByProduct] = useState({});
 
-  const [unpaidOrders, setUnpaidOrders] = useState([]);
-  const [unpaidLoading, setUnpaidLoading] = useState(false);
-  const [unpaidError, setUnpaidError] = useState("");
-
   const configReady = useMemo(
     () =>
       Boolean(
@@ -41,16 +37,16 @@ export default function CustomerMenu({
           productsCollectionId &&
           menusCollectionId &&
           ordersCollectionId &&
-          orderItemsCollectionId
+          orderItemsCollectionId,
       ),
-    []
+    [],
   );
 
   const loadProducts = async () => {
     const response = await databases.listDocuments(
       databaseId,
       productsCollectionId,
-      [Query.orderAsc("name")]
+      [Query.orderAsc("name")],
     );
     setProducts(response.documents);
   };
@@ -59,74 +55,9 @@ export default function CustomerMenu({
     const response = await databases.listDocuments(
       databaseId,
       menusCollectionId,
-      [Query.equal("open", true), Query.limit(1)]
+      [Query.equal("open", true), Query.limit(1)],
     );
     setMenu(response.documents[0] ?? null);
-  };
-  const loadUnpaidOrders = async () => {
-    if (!configReady || !user?.$id) {
-      setUnpaidOrders([]);
-      return;
-    }
-    setUnpaidLoading(true);
-    setUnpaidError("");
-    try {
-      const ordersResp = await databases.listDocuments(
-        databaseId,
-        ordersCollectionId,
-        [
-          Query.equal("userId", user.$id),
-          Query.equal("payment", false),
-          Query.orderDesc("$updatedAt"),
-          Query.limit(50),
-        ]
-      );
-
-      let results = ordersResp.documents.map((o) => ({
-        ...o,
-        summary: { quantity: 0, amount: 0 },
-      }));
-
-      if (orderItemsCollectionId && results.length > 0) {
-        const ids = results.map((o) => o.$id);
-        const itemsResp = await databases.listDocuments(
-          databaseId,
-          orderItemsCollectionId,
-          [Query.equal("orderId", ids), Query.limit(500)]
-        );
-        const byOrder = itemsResp.documents.reduce((acc, item) => {
-          const oid =
-            item.orderId && typeof item.orderId === "object"
-              ? item.orderId.$id
-              : item.orderId;
-          if (!oid) return acc;
-          if (!acc.has(oid)) acc.set(oid, []);
-          acc.get(oid).push(item);
-          return acc;
-        }, new Map());
-        results = results.map((o) => {
-          const its = byOrder.get(o.$id) ?? [];
-          const totals = its.reduce(
-            (t, it) => {
-              const q = Number(it.quantity) || 0;
-              const p = Number(it.price ?? it.unitPrice) || 0;
-              t.quantity += q;
-              t.amount += q * p;
-              return t;
-            },
-            { quantity: 0, amount: 0 }
-          );
-          return { ...o, summary: totals };
-        });
-      }
-
-      setUnpaidOrders(results);
-    } catch (err) {
-      setUnpaidError(err?.message || "Unable to load unpaid orders.");
-      setUnpaidOrders([]);
-    } finally {
-      setUnpaidLoading(false);
-    }
   };
 
   const bootstrap = async () => {
@@ -139,7 +70,7 @@ export default function CustomerMenu({
     setError("");
 
     try {
-      await Promise.all([loadProducts(), loadMenu(), loadUnpaidOrders()]);
+      await Promise.all([loadProducts(), loadMenu()]);
     } catch (err) {
       const message =
         err?.message ||
@@ -198,7 +129,7 @@ export default function CustomerMenu({
             Query.equal("menuDate", menu.menuDate),
             Query.equal("userId", user.$id),
             Query.limit(1),
-          ]
+          ],
         );
 
         if (response.total === 0) {
@@ -211,7 +142,7 @@ export default function CustomerMenu({
         const itemsResponse = await databases.listDocuments(
           databaseId,
           orderItemsCollectionId,
-          [Query.equal("orderId", orderDoc.$id)]
+          [Query.equal("orderId", orderDoc.$id)],
         );
 
         const nextItemMap = {};
@@ -310,7 +241,7 @@ export default function CustomerMenu({
           Query.equal("menuDate", menu.menuDate),
           Query.equal("userId", user.$id),
           Query.limit(1),
-        ]
+        ],
       );
 
       if (existingOrderResponse.total > 0) {
@@ -324,13 +255,13 @@ export default function CustomerMenu({
             menuDate: menu.menuDate,
             userId: user.$id,
             payment: false,
-          }
+          },
         );
         isNewOrder = true;
       }
 
       const productIndex = new Map(
-        menuProducts.map((product) => [product.$id, product])
+        menuProducts.map((product) => [product.$id, product]),
       );
       const nextItemsMap = { ...orderItemsByProduct };
       const processedProductIds = new Set();
@@ -353,7 +284,7 @@ export default function CustomerMenu({
             databaseId,
             orderItemsCollectionId,
             ID.unique(),
-            payload
+            payload,
           );
           createdItemIds.push(itemDocument.$id);
           nextItemsMap[productId] = itemDocument;
@@ -365,7 +296,7 @@ export default function CustomerMenu({
             databaseId,
             orderItemsCollectionId,
             existingItem.$id,
-            payload
+            payload,
           );
           nextItemsMap[productId] = updatedItem;
         }
@@ -376,7 +307,7 @@ export default function CustomerMenu({
       setOrderSuccess(
         isNewOrder
           ? "Order recorded. Check the Appwrite console for details."
-          : "Order updated successfully."
+          : "Order updated successfully.",
       );
 
       const updatedQuantities = (menu.productIds || []).reduce((acc, id) => {
@@ -398,7 +329,7 @@ export default function CustomerMenu({
           await databases.deleteDocument(
             databaseId,
             ordersCollectionId,
-            orderDocument.$id
+            orderDocument.$id,
           );
         } catch {
           // ignore cleanup errors
@@ -408,8 +339,12 @@ export default function CustomerMenu({
       if (createdItemIds.length > 0) {
         await Promise.allSettled(
           createdItemIds.map((itemId) =>
-            databases.deleteDocument(databaseId, orderItemsCollectionId, itemId)
-          )
+            databases.deleteDocument(
+              databaseId,
+              orderItemsCollectionId,
+              itemId,
+            ),
+          ),
         );
       }
 
@@ -471,15 +406,13 @@ export default function CustomerMenu({
             </p>
           </div>
           <div className="flex gap-3">
-            {isAdmin ? (
-              <button
-                type="button"
-                onClick={() => onNavigate("dashboard")}
-                className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white transition hover:border-white/30"
-              >
-                Back to dashboard
-              </button>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => onNavigate("dashboard")}
+              className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white transition hover:border-white/30"
+            >
+              Back to dashboard
+            </button>
             <button
               type="button"
               onClick={onLogout}
@@ -496,55 +429,6 @@ export default function CustomerMenu({
           </section>
         ) : null}
 
-        {unpaidError ? (
-          <section className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-6 text-sm text-amber-200 shadow-2xl backdrop-blur">
-            {unpaidError}
-          </section>
-        ) : null}
-
-        {unpaidLoading ? null : unpaidOrders.length > 0 ? (
-          <section className="rounded-2xl border border-white/10 bg-slate-900/80 p-6 shadow-2xl backdrop-blur">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white">
-                Unpaid orders
-              </h2>
-              <button
-                type="button"
-                onClick={loadUnpaidOrders}
-                className="rounded-md border border-white/10 px-3 py-1.5 text-xs text-slate-200 transition hover:border-white/30"
-              >
-                Refresh
-              </button>
-            </div>
-            <ul className="mt-4 space-y-3">
-              {unpaidOrders.map((o) => (
-                <li
-                  key={o.$id}
-                  className="flex items-center justify-between rounded-lg border border-white/10 bg-slate-800/60 px-4 py-3 text-sm text-slate-200"
-                >
-                  <div>
-                    <p className="font-medium text-white">
-                      {formatMenuDate(o.menuDate) || "Order"}
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      Updated:{" "}
-                      {new Date(o.$updatedAt || o.$createdAt).toLocaleString(
-                        "id-ID"
-                      )}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-slate-300">Amount</p>
-                    <p className="text-sm text-white">
-                      {formatRupiah(o.summary?.amount || 0)}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
         {Object.keys(orderItemsByProduct).length > 0 ? (
           <section className="rounded-2xl border border-white/10 bg-slate-900/80 p-6 shadow-2xl backdrop-blur">
             <h2 className="text-lg font-semibold text-white">
@@ -558,23 +442,24 @@ export default function CustomerMenu({
                   .map((item) => item.$updatedAt || item.$createdAt)
                   .filter(Boolean);
                 if (timestamps.length === 0) return "Baru dibuat";
+
                 const newest = timestamps.reduce(
                   (latest, current) =>
                     new Date(current) > new Date(latest) ? current : latest,
-                  timestamps[0]
+                  timestamps[0],
                 );
+
                 return new Date(newest).toLocaleString("id-ID");
               })()}
             </p>
-
             <ul className="mt-4 space-y-2 text-sm text-slate-200">
               {Object.values(orderItemsByProduct).map((item) => {
                 const product = menuProducts.find(
-                  (prod) => prod.$id === item.productId
+                  (prod) => prod.$id === item.productId,
                 );
                 return (
                   <li
-                    key={item.productId.$id}
+                    key={item.productId.$id || item.$id}
                     className="flex flex-col gap-1 rounded-lg border border-white/10 bg-slate-800/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div>
@@ -587,7 +472,7 @@ export default function CustomerMenu({
                             ? product.price
                             : typeof item.unitPrice === "number"
                               ? item.unitPrice
-                              : item.price
+                              : item.price,
                         )}
                       </p>
                       {item.note ? (
@@ -667,7 +552,7 @@ export default function CustomerMenu({
                             className="flex h-9 w-9 items-center justify-center rounded-md border border-white/10 bg-slate-900 text-lg text-white transition hover:border-emerald-400 hover:text-emerald-300"
                             aria-label={`Kurangi ${product.name}`}
                           >
-                            -
+                            −
                           </button>
                           <input
                             type="number"
@@ -677,7 +562,7 @@ export default function CustomerMenu({
                             onChange={(event) =>
                               handleQuantityChange(
                                 product.$id,
-                                event.target.value
+                                event.target.value,
                               )
                             }
                             className="h-9 w-16 rounded-md border border-white/10 bg-slate-900 px-3 text-center text-white outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40"
@@ -748,3 +633,4 @@ CustomerMenu.propTypes = {
   onNavigate: PropTypes.func,
   onLogout: PropTypes.func,
 };
+

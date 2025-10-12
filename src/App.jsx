@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+﻿import { useCallback, useEffect, useState } from "react";
 import "./App.css";
 import { account, teams } from "./lib/appwrite.js";
 import Register from "./pages/Register.jsx";
@@ -11,7 +11,7 @@ import AdminOrders from "./pages/AdminOrders.jsx";
 import CustomerMenu from "./pages/CustomerMenu.jsx";
 
 const LoadingScreen = () => (
-  <main className="grid min-h-screen place-items-center bg-slate-900 text-slate-100">
+  <main className="grid min-h-screen place-items-center bg-rose-50 text-slate-100">
     <div className="flex flex-col items-center gap-3">
       <svg
         className="h-10 w-10 animate-spin text-pink-400"
@@ -32,7 +32,7 @@ const LoadingScreen = () => (
           d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
         />
       </svg>
-      <p className="text-sm text-slate-300">Checking session…</p>
+      <p className="text-sm text-slate-900">Checking session...</p>
     </div>
   </main>
 );
@@ -205,4 +205,5 @@ export default function App() {
     />
   );
 }
+
 

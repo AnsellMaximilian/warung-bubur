@@ -424,10 +424,10 @@ export default function CustomerMenu({
 
   if (!configReady) {
     return (
-      <main className="grid min-h-screen place-items-center bg-slate-900 text-slate-100">
-        <div className="max-w-md space-y-4 rounded-2xl border border-white/10 bg-slate-900/80 p-6 text-center shadow-2xl backdrop-blur">
-          <h1 className="text-2xl font-semibold text-white">Missing setup</h1>
-          <p className="text-sm text-slate-300">
+      <main className="grid min-h-screen place-items-center bg-white text-slate-900">
+        <div className="max-w-md space-y-4 rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-lg ">
+          <h1 className="text-2xl font-semibold text-slate-900">Missing setup</h1>
+          <p className="text-sm text-slate-600">
             Define `VITE_APPWRITE_DATABASE_ID`,
             `VITE_APPWRITE_PRODUCTS_COLLECTION_ID`,
             `VITE_APPWRITE_MENUS_COLLECTION_ID`,
@@ -438,14 +438,14 @@ export default function CustomerMenu({
           <div className="flex justify-center gap-3">
             <button
               type="button"
-              className="rounded-md border border-white/20 px-3 py-2 text-sm text-white"
+              className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900"
               onClick={() => onNavigate("dashboard")}
             >
               Back to dashboard
             </button>
             <button
               type="button"
-              className="rounded-md border border-pink-400/40 bg-pink-500/10 px-3 py-2 text-sm text-pink-100"
+              className="rounded-md border border-pink-400/40 bg-rose-50 px-3 py-2 text-sm text-pink-100"
               onClick={onLogout}
             >
               Log out
@@ -457,14 +457,14 @@ export default function CustomerMenu({
   }
 
   return (
-    <main className="min-h-screen bg-slate-900/95 py-16 text-slate-100">
+    <main className="min-h-screen bg-rose-50 py-16 text-slate-900">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 sm:px-10">
         <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
               Tomorrow’s Menu
             </h1>
-            <p className="mt-2 text-sm text-slate-300 sm:text-base">
+            <p className="mt-2 text-sm text-slate-600 sm:text-base">
               {isAdmin
                 ? "You can preview what customers will see and place test orders."
                 : "Pick from the available products below to place your order."}
@@ -475,7 +475,7 @@ export default function CustomerMenu({
               <button
                 type="button"
                 onClick={() => onNavigate("dashboard")}
-                className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white transition hover:border-white/30"
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-900 transition hover:border-white/30"
               >
                 Back to dashboard
               </button>
@@ -483,7 +483,7 @@ export default function CustomerMenu({
             <button
               type="button"
               onClick={onLogout}
-              className="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white shadow hover:bg-slate-700"
+              className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow hover:bg-slate-100"
             >
               Log out
             </button>
@@ -491,27 +491,27 @@ export default function CustomerMenu({
         </header>
 
         {error ? (
-          <section className="rounded-2xl border border-pink-500/40 bg-pink-500/10 p-6 text-sm text-pink-200 shadow-2xl backdrop-blur">
+          <section className="rounded-2xl border border-pink-500/40 bg-rose-50 p-6 text-sm text-pink-200 shadow-lg ">
             {error}
           </section>
         ) : null}
 
         {unpaidError ? (
-          <section className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-6 text-sm text-amber-200 shadow-2xl backdrop-blur">
+          <section className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-6 text-sm text-amber-200 shadow-lg ">
             {unpaidError}
           </section>
         ) : null}
 
         {unpaidLoading ? null : unpaidOrders.length > 0 ? (
-          <section className="rounded-2xl border border-white/10 bg-slate-900/80 p-6 shadow-2xl backdrop-blur">
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg ">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-white">
+              <h2 className="text-lg font-semibold text-slate-900">
                 Unpaid orders
               </h2>
               <button
                 type="button"
                 onClick={loadUnpaidOrders}
-                className="rounded-md border border-white/10 px-3 py-1.5 text-xs text-slate-200 transition hover:border-white/30"
+                className="rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 transition hover:border-white/30"
               >
                 Refresh
               </button>
@@ -520,10 +520,10 @@ export default function CustomerMenu({
               {unpaidOrders.map((o) => (
                 <li
                   key={o.$id}
-                  className="flex items-center justify-between rounded-lg border border-white/10 bg-slate-800/60 px-4 py-3 text-sm text-slate-200"
+                  className="flex items-center justify-between rounded-lg border border-slate-200 bg-white/60 px-4 py-3 text-sm text-slate-700"
                 >
                   <div>
-                    <p className="font-medium text-white">
+                    <p className="font-medium text-slate-900">
                       {formatMenuDate(o.menuDate) || "Order"}
                     </p>
                     <p className="text-xs text-slate-400">
@@ -534,8 +534,8 @@ export default function CustomerMenu({
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-slate-300">Amount</p>
-                    <p className="text-sm text-white">
+                    <p className="text-xs text-slate-600">Amount</p>
+                    <p className="text-sm text-slate-900">
                       {formatRupiah(o.summary?.amount || 0)}
                     </p>
                   </div>
@@ -546,8 +546,8 @@ export default function CustomerMenu({
         ) : null}
 
         {Object.keys(orderItemsByProduct).length > 0 ? (
-          <section className="rounded-2xl border border-white/10 bg-slate-900/80 p-6 shadow-2xl backdrop-blur">
-            <h2 className="text-lg font-semibold text-white">
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg ">
+            <h2 className="text-lg font-semibold text-slate-900">
               Pesanan kamu untuk menu ini
             </h2>
             <p className="mt-1 text-xs uppercase tracking-wide text-slate-400">
@@ -567,7 +567,7 @@ export default function CustomerMenu({
               })()}
             </p>
 
-            <ul className="mt-4 space-y-2 text-sm text-slate-200">
+            <ul className="mt-4 space-y-2 text-sm text-slate-700">
               {Object.values(orderItemsByProduct).map((item) => {
                 const product = menuProducts.find(
                   (prod) => prod.$id === item.productId
@@ -575,10 +575,10 @@ export default function CustomerMenu({
                 return (
                   <li
                     key={item.productId.$id}
-                    className="flex flex-col gap-1 rounded-lg border border-white/10 bg-slate-800/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div>
-                      <p className="font-medium text-white">
+                      <p className="font-medium text-slate-900">
                         {product?.name || item.productName || "Produk"}
                       </p>
                       <p className="text-xs text-slate-400">
@@ -596,7 +596,7 @@ export default function CustomerMenu({
                         </p>
                       ) : null}
                     </div>
-                    <span className="text-sm text-slate-200">
+                    <span className="text-sm text-slate-700">
                       x {item.quantity}
                     </span>
                   </li>
@@ -606,10 +606,10 @@ export default function CustomerMenu({
           </section>
         ) : null}
 
-        <section className="rounded-2xl border border-white/10 bg-slate-900/80 p-8 shadow-2xl backdrop-blur">
+        <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-lg ">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-lg font-semibold text-white">
+              <h2 className="text-lg font-semibold text-slate-900">
                 Serving on {formatMenuDate(menu?.menuDate)}
               </h2>
               <p className="text-xs uppercase tracking-wide text-slate-400">
@@ -625,20 +625,20 @@ export default function CustomerMenu({
             <button
               type="button"
               onClick={bootstrap}
-              className="self-start rounded-md border border-white/10 px-3 py-1.5 text-xs text-slate-200 transition hover:border-white/30"
+              className="self-start rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 transition hover:border-white/30"
             >
               Refresh
             </button>
           </div>
 
           {loading ? (
-            <p className="mt-4 text-sm text-slate-300">Loading menu…</p>
+            <p className="mt-4 text-sm text-slate-600">Loading menu…</p>
           ) : !menu ? (
-            <p className="mt-4 text-sm text-slate-300">
+            <p className="mt-4 text-sm text-slate-600">
               No published menu for tomorrow yet. Check back later.
             </p>
           ) : menuProducts.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-300">
+            <p className="mt-4 text-sm text-slate-600">
               Products have not been linked to this menu. Reach out to an admin.
             </p>
           ) : (
@@ -647,24 +647,24 @@ export default function CustomerMenu({
                 {menuProducts.map((product) => (
                   <div
                     key={product.$id}
-                    className="flex flex-col gap-3 rounded-2xl border border-white/10 bg-slate-800/80 p-4"
+                    className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4"
                   >
                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                       <div>
-                        <h3 className="text-lg font-semibold text-white">
+                        <h3 className="text-lg font-semibold text-slate-900">
                           {product.name}
                         </h3>
-                        <p className="text-sm text-slate-300">
+                        <p className="text-sm text-slate-600">
                           {formatRupiah(product.price)}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-slate-200">
+                      <div className="flex items-center gap-2 text-sm text-slate-700">
                         <span className="sr-only sm:not-sr-only">Quantity</span>
                         <div className="flex items-center gap-1">
                           <button
                             type="button"
                             onClick={() => adjustQuantity(product.$id, -1)}
-                            className="flex h-9 w-9 items-center justify-center rounded-md border border-white/10 bg-slate-900 text-lg text-white transition hover:border-emerald-400 hover:text-emerald-300"
+                            className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-lg text-slate-900 transition hover:border-emerald-400 hover:text-emerald-300"
                             aria-label={`Kurangi ${product.name}`}
                           >
                             -
@@ -680,14 +680,14 @@ export default function CustomerMenu({
                                 event.target.value
                               )
                             }
-                            className="h-9 w-16 rounded-md border border-white/10 bg-slate-900 px-3 text-center text-white outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/40"
+                            className="h-9 w-16 rounded-md border border-slate-200 bg-white px-3 text-center text-slate-900 outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-300/40"
                             inputMode="numeric"
                             pattern="[0-9]*"
                           />
                           <button
                             type="button"
                             onClick={() => adjustQuantity(product.$id, 1)}
-                            className="flex h-9 w-9 items-center justify-center rounded-md border border-white/10 bg-slate-900 text-lg text-white transition hover:border-emerald-400 hover:text-emerald-300"
+                            className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-lg text-slate-900 transition hover:border-emerald-400 hover:text-emerald-300"
                             aria-label={`Tambah ${product.name}`}
                           >
                             +
@@ -696,7 +696,7 @@ export default function CustomerMenu({
                       </div>
                     </div>
 
-                    <label className="flex flex-col gap-1 text-sm text-slate-200">
+                    <label className="flex flex-col gap-1 text-sm text-slate-700">
                       <span>Catatan (opsional)</span>
                       <textarea
                         rows={2}
@@ -705,7 +705,7 @@ export default function CustomerMenu({
                           handleNoteChange(product.$id, event.target.value)
                         }
                         placeholder="Contoh: tanpa gula, ekstra es"
-                        className="w-full rounded-md border border-white/10 bg-slate-900 px-3 py-2 text-sm text-white outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/30"
+                        className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-500/30"
                       />
                     </label>
                   </div>
@@ -713,13 +713,13 @@ export default function CustomerMenu({
               </div>
 
               {orderError ? (
-                <div className="rounded-lg border border-pink-500/40 bg-pink-500/10 px-4 py-3 text-sm text-pink-200">
+                <div className="rounded-lg border border-pink-500/40 bg-rose-50 px-4 py-3 text-sm text-pink-200">
                   {orderError}
                 </div>
               ) : null}
 
               {orderSuccess ? (
-                <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                <div className="rounded-lg border border-emerald-500/40 bg-emerald-50 px-4 py-3 text-sm text-emerald-200">
                   {orderSuccess}
                 </div>
               ) : null}
@@ -727,7 +727,7 @@ export default function CustomerMenu({
               <button
                 type="submit"
                 disabled={savingOrder}
-                className="inline-flex items-center justify-center rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow shadow-emerald-500/30 transition hover:bg-emerald-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200 disabled:cursor-not-allowed disabled:bg-emerald-500/50"
+                className="inline-flex items-center justify-center rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-900 shadow shadow-emerald-200/40 transition hover:bg-emerald-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200 disabled:cursor-not-allowed disabled:bg-emerald-500/50"
               >
                 {savingOrder ? "Submitting…" : "Place order"}
               </button>
@@ -748,3 +748,4 @@ CustomerMenu.propTypes = {
   onNavigate: PropTypes.func,
   onLogout: PropTypes.func,
 };
+

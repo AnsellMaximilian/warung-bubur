@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import PropTypes from "prop-types";
+import { useNavigate } from "react-router";
 import { Query } from "appwrite";
 import { useQuery } from "@tanstack/react-query";
 import { databases } from "../lib/appwrite.js";
@@ -20,9 +21,10 @@ const getTodayDateString = () => {
 };
 
 export default function AdminOrderItems({
-  onNavigate = () => {},
   onLogout = () => {},
 }) {
+  const navigate = useNavigate();
+
   const [currentDate] = useState(() => getTodayDateString());
 
   const configReady = useMemo(
@@ -111,7 +113,7 @@ export default function AdminOrderItems({
             <button
               type="button"
               className="rounded-md border border-white/20 px-3 py-2 text-sm text-white"
-              onClick={() => onNavigate("dashboard")}
+              onClick={() => navigate("/dashboard")}
             >
               Back to dashboard
             </button>
@@ -178,7 +180,7 @@ export default function AdminOrderItems({
             </button>
             <button
               type="button"
-              onClick={() => onNavigate("dashboard")}
+              onClick={() => navigate("/dashboard")}
               className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white transition hover:border-white/30"
             >
               Back to dashboard
@@ -282,6 +284,5 @@ export default function AdminOrderItems({
 }
 
 AdminOrderItems.propTypes = {
-  onNavigate: PropTypes.func,
   onLogout: PropTypes.func,
 };

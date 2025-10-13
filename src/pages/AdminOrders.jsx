@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
+import { useNavigate } from "react-router";
 import { Query } from "appwrite";
 import { useQuery } from "@tanstack/react-query";
 import { databases } from "../lib/appwrite.js";
@@ -26,14 +27,15 @@ const extractCustomerName = (order) => {
 };
 
 export default function AdminOrders({
-  onNavigate = () => {},
   onLogout = () => {},
 }) {
+  const navigate = useNavigate();
+
   const [expandedOrders, setExpandedOrders] = useState([]);
 
   const configReady = useMemo(
     () => Boolean(databaseId && ordersCollectionId),
-    []
+    [],
   );
 
   const {
@@ -60,7 +62,7 @@ export default function AdminOrders({
             Query.orderAsc("payment"),
             Query.orderDesc("$updatedAt"),
             Query.limit(200),
-          ]
+          ],
         );
 
         const normalizedOrders = ordersResponse.documents.map((order) => ({
@@ -164,7 +166,7 @@ export default function AdminOrders({
             <button
               type="button"
               className="rounded-md border border-white/20 px-3 py-2 text-sm text-white"
-              onClick={() => onNavigate("dashboard")}
+              onClick={() => navigate("/dashboard")}
             >
               Back to dashboard
             </button>
@@ -229,7 +231,7 @@ export default function AdminOrders({
             </button>
             <button
               type="button"
-              onClick={() => onNavigate("dashboard")}
+              onClick={() => navigate("/dashboard")}
               className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white transition hover:border-white/30"
             >
               Back to dashboard
@@ -439,6 +441,5 @@ export default function AdminOrders({
 }
 
 AdminOrders.propTypes = {
-  onNavigate: PropTypes.func,
   onLogout: PropTypes.func,
 };

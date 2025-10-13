@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import PropTypes from "prop-types";
+import { useNavigate } from "react-router";
 import { ID, Query } from "appwrite";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { databases } from "../lib/appwrite.js";
@@ -22,9 +23,10 @@ const defaultMenuForm = () => {
 };
 
 export default function AdminMenus({
-  onNavigate = () => {},
   onLogout = () => {},
 }) {
+  const navigate = useNavigate();
+
   const queryClient = useQueryClient();
   const productsQueryKey = ["products", databaseId, productsCollectionId];
   const menusQueryKey = ["menus", databaseId, menusCollectionId];
@@ -311,7 +313,7 @@ export default function AdminMenus({
             <button
               type="button"
               className="rounded-md border border-white/20 px-3 py-2 text-sm text-white"
-              onClick={() => onNavigate("dashboard")}
+              onClick={() => navigate("/dashboard")}
             >
               Back to dashboard
             </button>
@@ -344,7 +346,7 @@ export default function AdminMenus({
           <div className="flex gap-3">
             <button
               type="button"
-              onClick={() => onNavigate("dashboard")}
+              onClick={() => navigate("/dashboard")}
               className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white transition hover:border-white/30"
             >
               Back to dashboard
@@ -623,6 +625,5 @@ export default function AdminMenus({
 }
 
 AdminMenus.propTypes = {
-  onNavigate: PropTypes.func,
   onLogout: PropTypes.func,
 };

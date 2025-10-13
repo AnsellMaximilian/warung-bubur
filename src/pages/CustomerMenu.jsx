@@ -1,5 +1,6 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
+import { useNavigate } from "react-router";
 import { ID, Query } from "appwrite";
 import { databases } from "../lib/appwrite.js";
 import { formatRupiah } from "../lib/formatters.js";
@@ -16,9 +17,10 @@ const orderItemsCollectionId = import.meta.env
 export default function CustomerMenu({
   user,
   isAdmin = false,
-  onNavigate = () => {},
   onLogout = () => {},
 }) {
+  const navigate = useNavigate();
+
   const [products, setProducts] = useState([]);
   const [menu, setMenu] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -441,7 +443,7 @@ export default function CustomerMenu({
             <button
               type="button"
               className="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900"
-              onClick={() => onNavigate("dashboard")}
+              onClick={() => navigate("/dashboard")}
             >
               Back to dashboard
             </button>
@@ -476,7 +478,7 @@ export default function CustomerMenu({
             {isAdmin ? (
               <button
                 type="button"
-                onClick={() => onNavigate("dashboard")}
+                onClick={() => navigate("/dashboard")}
                 className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-900 transition hover:border-white/30"
               >
                 Back to dashboard
@@ -747,6 +749,5 @@ CustomerMenu.propTypes = {
     name: PropTypes.string,
   }).isRequired,
   isAdmin: PropTypes.bool,
-  onNavigate: PropTypes.func,
   onLogout: PropTypes.func,
 };

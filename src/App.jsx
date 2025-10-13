@@ -1,4 +1,6 @@
 ﻿import { useCallback, useEffect, useState } from "react";
+import PropTypes from "prop-types";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router";
 import "./App.css";
 import { account, teams } from "./lib/appwrite.js";
 import Register from "./pages/Register.jsx";
@@ -39,14 +41,52 @@ const LoadingScreen = () => (
 
 const adminTeamId = import.meta.env.VITE_APPWRITE_ADMIN_TEAM_ID;
 
+const getPostLoginPath = (adminStatus) => (adminStatus ? "/dashboard" : "/menu");
+
+function RequireAuth({ user, children }) {
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}
+
+function RequireAdmin({ user, isAdmin, children }) {
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return children;
+}
+
+const userPropType = PropTypes.shape({
+  $id: PropTypes.string,
+  name: PropTypes.string,
+  email: PropTypes.string,
+});
+
+RequireAuth.propTypes = {
+  user: userPropType,
+  children: PropTypes.node.isRequired,
+};
+
+RequireAdmin.propTypes = {
+  user: userPropType,
+  isAdmin: PropTypes.bool.isRequired,
+  children: PropTypes.node.isRequired,
+};
+
 export default function App() {
-  const [activeView, setActiveView] = useState("login");
   const [currentUser, setCurrentUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [checkingSession, setCheckingSession] = useState(true);
   const [rememberedEmail, setRememberedEmail] = useState("");
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const refreshAuthState = useCallback(async () => {
+    setCheckingSession(true);
     try {
       const user = await account.get();
       let adminStatus = false;
@@ -66,10 +106,11 @@ export default function App() {
       setCurrentUser(user);
       setIsAdmin(adminStatus);
       setRememberedEmail(user.email || "");
-      setActiveView("dashboard");
+      return { user, adminStatus };
     } catch {
       setCurrentUser(null);
       setIsAdmin(false);
+      return { user: null, adminStatus: false };
     } finally {
       setCheckingSession(false);
     }
@@ -80,38 +121,29 @@ export default function App() {
   }, [refreshAuthState]);
 
   useEffect(() => {
-    const adminOnlyViews = [
-      "admin-products",
-      "admin-menus",
-      "admin-order-items",
-      "admin-orders",
-    ];
-    if (!isAdmin && adminOnlyViews.includes(activeView)) {
-      setActiveView("dashboard");
-    }
-  }, [isAdmin, activeView]);
-
-  const handleNavigate = (view) => {
-    const adminOnlyViews = [
-      "admin-products",
-      "admin-menus",
-      "admin-order-items",
-      "admin-orders",
-    ];
-    if (!isAdmin && adminOnlyViews.includes(view)) {
+    if (checkingSession) {
       return;
     }
-    setActiveView(view);
-  };
+    if (!currentUser) {
+      return;
+    }
+    if (!isAdmin && location.pathname.startsWith("/admin")) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [checkingSession, currentUser, isAdmin, location.pathname, navigate]);
 
   const handleRegistrationSuccess = async () => {
-    setCheckingSession(true);
-    await refreshAuthState();
+    const { user: refreshedUser, adminStatus } = await refreshAuthState();
+    if (refreshedUser) {
+      navigate(getPostLoginPath(adminStatus), { replace: true });
+    }
   };
 
   const handleLoginSuccess = async () => {
-    setCheckingSession(true);
-    await refreshAuthState();
+    const { user: refreshedUser, adminStatus } = await refreshAuthState();
+    if (refreshedUser) {
+      navigate(getPostLoginPath(adminStatus), { replace: true });
+    }
   };
 
   const handleLogout = async () => {
@@ -122,7 +154,8 @@ export default function App() {
     } finally {
       setCurrentUser(null);
       setIsAdmin(false);
-      setActiveView("login");
+      setCheckingSession(false);
+      navigate("/login", { replace: true });
     }
   };
 
@@ -130,80 +163,122 @@ export default function App() {
     return <LoadingScreen />;
   }
 
-  if (currentUser) {
-    // Customers see the daily menu directly on dashboard
-    if (!isAdmin && (activeView === "dashboard" || activeView === "menu")) {
-      return (
-        <CustomerMenu
-          user={currentUser}
-          isAdmin={isAdmin}
-          onNavigate={handleNavigate}
-          onLogout={handleLogout}
-        />
-      );
-    }
-    if (activeView === "admin-products") {
-      return (
-        <AdminProducts onNavigate={handleNavigate} onLogout={handleLogout} />
-      );
-    }
-
-    if (activeView === "admin-menus") {
-      return <AdminMenus onNavigate={handleNavigate} onLogout={handleLogout} />;
-    }
-
-    if (activeView === "admin-order-items") {
-      return (
-        <AdminOrderItems
-          onNavigate={handleNavigate}
-          onLogout={handleLogout}
-        />
-      );
-    }
-
-    if (activeView === "admin-orders") {
-      return (
-        <AdminOrders onNavigate={handleNavigate} onLogout={handleLogout} />
-      );
-    }
-
-    if (activeView === "menu") {
-      return (
-        <CustomerMenu
-          user={currentUser}
-          isAdmin={isAdmin}
-          onNavigate={handleNavigate}
-          onLogout={handleLogout}
-        />
-      );
-    }
-
-    return (
-      <Dashboard
-        user={currentUser}
-        isAdmin={isAdmin}
-        onNavigate={handleNavigate}
-        onLogout={handleLogout}
-      />
-    );
-  }
-
-  if (activeView === "register") {
-    return (
-      <Register
-        onSuccess={handleRegistrationSuccess}
-        onSwitchToLogin={() => setActiveView("login")}
-      />
-    );
-  }
+  const defaultAuthenticatedPath = getPostLoginPath(isAdmin);
 
   return (
-    <Login
-      onSuccess={handleLoginSuccess}
-      onSwitchToRegister={() => setActiveView("register")}
-      defaultEmail={rememberedEmail}
-    />
+    <Routes>
+      <Route
+        path="/"
+        element={
+          currentUser ? (
+            <Navigate to={defaultAuthenticatedPath} replace />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+
+      <Route
+        path="/login"
+        element={
+          currentUser ? (
+            <Navigate to={defaultAuthenticatedPath} replace />
+          ) : (
+            <Login
+              onSuccess={handleLoginSuccess}
+              onSwitchToRegister={() => navigate("/register")}
+              defaultEmail={rememberedEmail}
+            />
+          )
+        }
+      />
+
+      <Route
+        path="/register"
+        element={
+          currentUser ? (
+            <Navigate to={defaultAuthenticatedPath} replace />
+          ) : (
+            <Register
+              onSuccess={handleRegistrationSuccess}
+              onSwitchToLogin={() => navigate("/login")}
+            />
+          )
+        }
+      />
+
+      <Route
+        path="/dashboard"
+        element={
+          <RequireAuth user={currentUser}>
+            {isAdmin ? (
+              <Dashboard user={currentUser} isAdmin={isAdmin} onLogout={handleLogout} />
+            ) : (
+              <CustomerMenu
+                user={currentUser}
+                isAdmin={isAdmin}
+                onLogout={handleLogout}
+              />
+            )}
+          </RequireAuth>
+        }
+      />
+
+      <Route
+        path="/menu"
+        element={
+          <RequireAuth user={currentUser}>
+            <CustomerMenu user={currentUser} isAdmin={isAdmin} onLogout={handleLogout} />
+          </RequireAuth>
+        }
+      />
+
+      <Route
+        path="/admin/products"
+        element={
+          <RequireAdmin user={currentUser} isAdmin={isAdmin}>
+            <AdminProducts onLogout={handleLogout} />
+          </RequireAdmin>
+        }
+      />
+
+      <Route
+        path="/admin/menus"
+        element={
+          <RequireAdmin user={currentUser} isAdmin={isAdmin}>
+            <AdminMenus onLogout={handleLogout} />
+          </RequireAdmin>
+        }
+      />
+
+      <Route
+        path="/admin/order-items"
+        element={
+          <RequireAdmin user={currentUser} isAdmin={isAdmin}>
+            <AdminOrderItems onLogout={handleLogout} />
+          </RequireAdmin>
+        }
+      />
+
+      <Route
+        path="/admin/orders"
+        element={
+          <RequireAdmin user={currentUser} isAdmin={isAdmin}>
+            <AdminOrders onLogout={handleLogout} />
+          </RequireAdmin>
+        }
+      />
+
+      <Route
+        path="*"
+        element={
+          currentUser ? (
+            <Navigate to={defaultAuthenticatedPath} replace />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+    </Routes>
   );
 }
-
-

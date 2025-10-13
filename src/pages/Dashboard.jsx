@@ -1,11 +1,13 @@
+import { useNavigate } from "react-router";
 import PropTypes from "prop-types";
 
 export default function Dashboard({
   user,
   isAdmin = false,
-  onNavigate = () => {},
   onLogout = () => {},
 }) {
+  const navigate = useNavigate();
+
   return (
     <main className="min-h-screen bg-slate-900/95 py-16 text-slate-100">
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 sm:px-10">
@@ -52,7 +54,7 @@ export default function Dashboard({
             <>
               <button
                 type="button"
-                onClick={() => onNavigate("admin-products")}
+                onClick={() => navigate("/admin/products")}
                 className="flex flex-col gap-2 rounded-2xl border border-pink-500/30 bg-pink-500/10 p-6 text-left transition hover:border-pink-400 hover:bg-pink-500/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-300"
               >
                 <span className="text-lg font-semibold text-white">
@@ -65,7 +67,7 @@ export default function Dashboard({
 
               <button
                 type="button"
-                onClick={() => onNavigate("admin-menus")}
+                onClick={() => navigate("/admin/menus")}
                 className="flex flex-col gap-2 rounded-2xl border border-indigo-400/30 bg-indigo-400/10 p-6 text-left transition hover:border-indigo-300 hover:bg-indigo-400/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-200"
               >
                 <span className="text-lg font-semibold text-white">
@@ -79,7 +81,7 @@ export default function Dashboard({
 
               <button
                 type="button"
-                onClick={() => onNavigate("admin-order-items")}
+                onClick={() => navigate("/admin/order-items")}
                 className="flex flex-col gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-6 text-left transition hover:border-emerald-300 hover:bg-emerald-400/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200"
               >
                 <span className="text-lg font-semibold text-white">
@@ -93,7 +95,7 @@ export default function Dashboard({
 
               <button
                 type="button"
-                onClick={() => onNavigate("admin-orders")}
+                onClick={() => navigate("/admin/orders")}
                 className="flex flex-col gap-2 rounded-2xl border border-amber-400/30 bg-amber-400/10 p-6 text-left transition hover:border-amber-300 hover:bg-amber-400/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-200"
               >
                 <span className="text-lg font-semibold text-white">
@@ -114,7 +116,7 @@ export default function Dashboard({
 
           <button
             type="button"
-            onClick={() => onNavigate("menu")}
+            onClick={() => navigate("/menu")}
             className="flex flex-col gap-2 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-6 text-left transition hover:border-emerald-300 hover:bg-emerald-400/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200"
           >
             <span className="text-lg font-semibold text-white">
@@ -135,7 +137,7 @@ export default function Dashboard({
               Databases or storage.
             </li>
             <li>
-              Secure your `.env` file and configure Vite environment variables
+              Secure your .env file and configure Vite environment variables
               for production deployments.
             </li>
             <li>
@@ -159,6 +161,5 @@ Dashboard.propTypes = {
     $id: PropTypes.string,
   }).isRequired,
   isAdmin: PropTypes.bool,
-  onNavigate: PropTypes.func,
   onLogout: PropTypes.func,
 };

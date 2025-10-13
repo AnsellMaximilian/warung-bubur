@@ -75,7 +75,7 @@ export default function CustomerMenu({
         databaseId,
         ordersCollectionId,
         [
-          Query.equal("userId", user.$id),
+          Query.equal("userProfile", user.$id),
           Query.equal("payment", false),
           Query.orderDesc("$updatedAt"),
           Query.limit(50),
@@ -196,7 +196,7 @@ export default function CustomerMenu({
           ordersCollectionId,
           [
             Query.equal("menuDate", menu.menuDate),
-            Query.equal("userId", user.$id),
+            Query.equal("userProfile", user.$id),
             Query.limit(1),
           ]
         );
@@ -308,7 +308,7 @@ export default function CustomerMenu({
         ordersCollectionId,
         [
           Query.equal("menuDate", menu.menuDate),
-          Query.equal("userId", user.$id),
+          Query.equal("userProfile", user.$id),
           Query.limit(1),
         ]
       );
@@ -322,7 +322,7 @@ export default function CustomerMenu({
           ID.unique(),
           {
             menuDate: menu.menuDate,
-            userId: user.$id,
+            userProfile: user.$id,
             payment: false,
           }
         );
@@ -426,7 +426,9 @@ export default function CustomerMenu({
     return (
       <main className="grid min-h-screen place-items-center bg-white text-slate-900">
         <div className="max-w-md space-y-4 rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-lg ">
-          <h1 className="text-2xl font-semibold text-slate-900">Missing setup</h1>
+          <h1 className="text-2xl font-semibold text-slate-900">
+            Missing setup
+          </h1>
           <p className="text-sm text-slate-600">
             Define `VITE_APPWRITE_DATABASE_ID`,
             `VITE_APPWRITE_PRODUCTS_COLLECTION_ID`,
@@ -748,4 +750,3 @@ CustomerMenu.propTypes = {
   onNavigate: PropTypes.func,
   onLogout: PropTypes.func,
 };
-

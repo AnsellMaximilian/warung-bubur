@@ -31,6 +31,7 @@ export default function CustomerMenu({
   const [savingOrder, setSavingOrder] = useState(false);
   const [orderItemsByProduct, setOrderItemsByProduct] = useState({});
   const [notesByProduct, setNotesByProduct] = useState({});
+  const [noteExpanded, setNoteExpanded] = useState({});
 
   const [unpaidOrders, setUnpaidOrders] = useState([]);
   const [unpaidLoading, setUnpaidLoading] = useState(false);
@@ -169,10 +170,12 @@ export default function CustomerMenu({
       }, {});
       setQuantities(defaultQuantities);
       setNotesByProduct(defaultNotes);
+      setNoteExpanded({});
     } else {
       setQuantities({});
       setNotesByProduct({});
       setOrderItemsByProduct({});
+      setNoteExpanded({});
     }
   }, [menu]);
 
@@ -183,6 +186,61 @@ export default function CustomerMenu({
       .map((productId) => products.find((product) => product.$id === productId))
       .filter(Boolean);
   }, [menu, products]);
+
+  const menuDateLabel = useMemo(() => {
+    if (!menu?.menuDate) return "Tanggal belum tersedia";
+    return formatMenuDate(menu.menuDate);
+  }, [menu?.menuDate]);
+
+  const priceByProductId = useMemo(() => {
+    const lookup = new Map();
+    menuProducts.forEach((product) => {
+      const price = Number(product?.price);
+      lookup.set(product.$id, Number.isFinite(price) ? price : 0);
+    });
+    return lookup;
+  }, [menuProducts]);
+
+  const selectedTotals = useMemo(() => {
+    let totalQuantity = 0;
+    let totalAmount = 0;
+
+    Object.entries(quantities).forEach(([productId, rawValue]) => {
+      const qty = Number(rawValue) || 0;
+      if (qty <= 0) {
+        return;
+      }
+      const price = priceByProductId.get(productId) ?? 0;
+      totalQuantity += qty;
+      totalAmount += qty * price;
+    });
+
+    return { totalQuantity, totalAmount };
+  }, [priceByProductId, quantities]);
+
+  const hasSelection = selectedTotals.totalQuantity > 0;
+  const hasSavedItems = Object.keys(orderItemsByProduct).length > 0;
+
+  const savedOrderTimestamp = useMemo(() => {
+    const items = Object.values(orderItemsByProduct || {});
+    if (items.length === 0) {
+      return null;
+    }
+    const timestamps = items
+      .map((item) => Date.parse(item.$updatedAt || item.$createdAt || ""))
+      .filter((value) => Number.isFinite(value));
+    if (timestamps.length === 0) {
+      return null;
+    }
+    return Math.max(...timestamps);
+  }, [orderItemsByProduct]);
+
+  const savedOrderLabel = useMemo(() => {
+    if (!savedOrderTimestamp) {
+      return "";
+    }
+    return new Date(savedOrderTimestamp).toLocaleString("id-ID");
+  }, [savedOrderTimestamp]);
 
   useEffect(() => {
     const loadExistingOrder = async () => {
@@ -241,6 +299,13 @@ export default function CustomerMenu({
         setOrderItemsByProduct(nextItemMap);
         setQuantities((current) => ({ ...current, ...nextQuantities }));
         setNotesByProduct((current) => ({ ...current, ...nextNotes }));
+        setNoteExpanded((current) => {
+          const nextExpanded = { ...current };
+          Object.entries(nextNotes).forEach(([productId, noteValue]) => {
+            nextExpanded[productId] = Boolean(noteValue);
+          });
+          return nextExpanded;
+        });
       } catch (err) {
         const message =
           err?.message ||
@@ -248,6 +313,7 @@ export default function CustomerMenu({
         setOrderError(message);
         setOrderItemsByProduct({});
         setNotesByProduct({});
+        setNoteExpanded({});
       }
     };
 
@@ -273,6 +339,13 @@ export default function CustomerMenu({
 
   const handleNoteChange = (productId, value) => {
     setNotesByProduct((current) => ({ ...current, [productId]: value }));
+  };
+
+  const toggleNoteSection = (productId) => {
+    setNoteExpanded((current) => ({
+      ...current,
+      [productId]: !current[productId],
+    }));
   };
 
   const handleSubmitOrder = async (event) => {
@@ -461,148 +534,125 @@ export default function CustomerMenu({
   }
 
   return (
-    <main className="min-h-screen bg-rose-50 py-16 text-slate-900">
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-4 sm:px-10">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-              Tomorrow’s Menu
-            </h1>
-            <p className="mt-2 text-sm text-slate-600 sm:text-base">
-              {isAdmin
-                ? "You can preview what customers will see and place test orders."
-                : "Pick from the available products below to place your order."}
-            </p>
-          </div>
-          <div className="flex gap-3">
-            {isAdmin ? (
+    <main className="min-h-screen bg-gradient-to-b from-rose-50 via-white to-white text-slate-900">
+      <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-28 pt-10 sm:gap-8 sm:px-6 sm:pb-20 sm:pt-14">
+        <header className="flex flex-col gap-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">Pesan Menu</h1>
+            <div className="flex items-center gap-2">
+              {isAdmin ? (
+                <button
+                  type="button"
+                  onClick={() => navigate("/dashboard")}
+                  className="rounded-full border border-rose-100 px-4 py-2 text-xs font-medium text-slate-600 shadow-sm transition hover:border-rose-200 hover:bg-white"
+                >
+                  Dashboard
+                </button>
+              ) : null}
               <button
                 type="button"
-                onClick={() => navigate("/dashboard")}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-900 transition hover:border-white/30"
+                onClick={onLogout}
+                className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-700"
               >
-                Back to dashboard
+                Keluar
               </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={onLogout}
-              className="rounded-lg bg-white px-4 py-2 text-sm font-medium text-slate-900 shadow hover:bg-slate-100"
-            >
-              Log out
-            </button>
+            </div>
+          </div>
+          <div className="rounded-3xl border border-rose-100 bg-white/80 p-6 shadow-md shadow-rose-100/60 backdrop-blur">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-2">
+                <p className="text-sm font-medium uppercase tracking-wide text-rose-400">{menu ? "Menu tersedia" : "Menu belum tersedia"}</p>
+                <p className="text-2xl font-semibold text-slate-900">{menu ? "Pilih favorit kamu untuk besok" : "Tunggu sebentar ya"}</p>
+                <p className="text-sm text-slate-600">
+                  {isAdmin
+                    ? "Gunakan tampilan ini untuk memastikan pengalaman pelanggan sudah rapi di layar kecil."
+                    : "Sentuh produk favoritmu, atur jumlah, dan tambahkan catatan bila perlu."}
+                </p>
+              </div>
+              <div className="flex flex-col items-start gap-2 rounded-2xl bg-rose-50 px-5 py-4 text-sm text-rose-500">
+                <span className="text-xs uppercase tracking-wide text-rose-400">Tanggal penyajian</span>
+                <span className="text-base font-semibold text-rose-500">{menu ? menuDateLabel : "Segera diumumkan"}</span>
+              </div>
+            </div>
           </div>
         </header>
 
         {error ? (
-          <section className="rounded-2xl border border-pink-500/40 bg-rose-50 p-6 text-sm text-pink-200 shadow-lg ">
-            {error}
-          </section>
+          <section className="rounded-3xl border border-pink-200 bg-rose-50/90 p-4 text-sm text-rose-600 shadow-sm">{error}</section>
         ) : null}
 
         {unpaidError ? (
-          <section className="rounded-2xl border border-amber-500/40 bg-amber-500/10 p-6 text-sm text-amber-200 shadow-lg ">
-            {unpaidError}
-          </section>
+          <section className="rounded-3xl border border-amber-200 bg-amber-50/90 p-4 text-sm text-amber-700 shadow-sm">{unpaidError}</section>
         ) : null}
 
         {unpaidLoading ? null : unpaidOrders.length > 0 ? (
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg ">
+          <section className="rounded-3xl border border-rose-100 bg-white/90 p-5 shadow-md shadow-rose-100/50 backdrop-blur">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-900">
-                Unpaid orders
-              </h2>
+              <h2 className="text-lg font-semibold text-slate-900">Pesanan menunggu pembayaran</h2>
               <button
                 type="button"
                 onClick={loadUnpaidOrders}
-                className="rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 transition hover:border-white/30"
+                className="rounded-full border border-rose-100 px-3 py-1.5 text-xs font-medium text-rose-500 transition hover:border-rose-200 hover:bg-white"
               >
-                Refresh
+                Segarkan
               </button>
             </div>
-            <ul className="mt-4 space-y-3">
+            <ul className="mt-4 grid gap-3">
               {unpaidOrders.map((o) => (
                 <li
                   key={o.$id}
-                  className="flex items-center justify-between rounded-lg border border-slate-200 bg-white/60 px-4 py-3 text-sm text-slate-700"
+                  className="flex items-center justify-between gap-3 rounded-2xl border border-rose-100 bg-rose-50/70 px-4 py-3 text-sm text-slate-700"
                 >
-                  <div>
-                    <p className="font-medium text-slate-900">
-                      {formatMenuDate(o.menuDate) || "Order"}
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      Updated:{" "}
-                      {new Date(o.$updatedAt || o.$createdAt).toLocaleString(
-                        "id-ID"
-                      )}
-                    </p>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-sm font-semibold text-slate-900">{formatMenuDate(o.menuDate)}</span>
+                    <span className="text-xs text-slate-500">{o.summary.quantity} item • {formatRupiah(o.summary.amount)}</span>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-slate-600">Amount</p>
-                    <p className="text-sm text-slate-900">
-                      {formatRupiah(o.summary?.amount || 0)}
-                    </p>
-                  </div>
+                  <span className="rounded-full bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-600">Belum bayar</span>
                 </li>
               ))}
             </ul>
           </section>
         ) : null}
 
-        {Object.keys(orderItemsByProduct).length > 0 ? (
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-lg ">
-            <h2 className="text-lg font-semibold text-slate-900">
-              Pesanan kamu untuk menu ini
-            </h2>
-            <p className="mt-1 text-xs uppercase tracking-wide text-slate-400">
-              Terakhir diperbarui:{" "}
-              {(() => {
-                const items = Object.values(orderItemsByProduct);
-                const timestamps = items
-                  .map((item) => item.$updatedAt || item.$createdAt)
-                  .filter(Boolean);
-                if (timestamps.length === 0) return "Baru dibuat";
-                const newest = timestamps.reduce(
-                  (latest, current) =>
-                    new Date(current) > new Date(latest) ? current : latest,
-                  timestamps[0]
-                );
-                return new Date(newest).toLocaleString("id-ID");
-              })()}
-            </p>
-
-            <ul className="mt-4 space-y-2 text-sm text-slate-700">
+        {hasSavedItems ? (
+          <section className="rounded-3xl border border-emerald-100 bg-emerald-50/60 p-5 shadow-md shadow-emerald-100/50 backdrop-blur">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-900">Pesanan tersimpan</h2>
+                <p className="text-xs uppercase tracking-wide text-slate-500">
+                  Terakhir diperbarui {savedOrderLabel || "baru dibuat"}
+                </p>
+              </div>
+            </div>
+            <ul className="mt-4 grid gap-3">
               {Object.values(orderItemsByProduct).map((item) => {
-                const product = menuProducts.find(
-                  (prod) => prod.$id === item.productId
-                );
+                const productId =
+                  item?.productId && typeof item.productId === "object"
+                    ? item.productId.$id
+                    : item?.productId;
+                const product = menuProducts.find((prod) => prod.$id === productId);
+                const quantity = Number(item.quantity) || 0;
+                const price = Number(item.price ?? product?.price ?? 0) || 0;
+                const total = quantity * price;
+                const note = item.note || "";
+                const name = item.productName || product?.name || "Produk";
                 return (
                   <li
-                    key={item.productId.$id}
-                    className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-white/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    key={item.$id || productId}
+                    className="rounded-2xl border border-emerald-100 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm"
                   >
-                    <div>
-                      <p className="font-medium text-slate-900">
-                        {product?.name || item.productName || "Produk"}
-                      </p>
-                      <p className="text-xs text-slate-400">
-                        {formatRupiah(
-                          typeof product?.price === "number"
-                            ? product.price
-                            : typeof item.unitPrice === "number"
-                              ? item.unitPrice
-                              : item.price
-                        )}
-                      </p>
-                      {item.note ? (
-                        <p className="text-xs text-slate-400">
-                          Catatan: {item.note}
-                        </p>
-                      ) : null}
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900">{name}</p>
+                        <p className="text-xs text-slate-500">{quantity} item • {formatRupiah(total)}</p>
+                      </div>
+                      <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-emerald-600 shadow-inner">
+                        {formatRupiah(price)} / item
+                      </span>
                     </div>
-                    <span className="text-sm text-slate-700">
-                      x {item.quantity}
-                    </span>
+                    {note ? (
+                      <p className="mt-2 text-xs text-slate-500">Catatan: {note}</p>
+                    ) : null}
                   </li>
                 );
               })}
@@ -610,131 +660,132 @@ export default function CustomerMenu({
           </section>
         ) : null}
 
-        <section className="rounded-2xl border border-slate-200 bg-white p-8 shadow-lg ">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900">
-                Serving on {formatMenuDate(menu?.menuDate)}
-              </h2>
-              <p className="text-xs uppercase tracking-wide text-slate-400">
-                {menu?.open === false
-                  ? "Draft menu"
-                  : loading
-                    ? "Loading menu…"
-                    : menu
-                      ? "Published"
-                      : "Awaiting publication"}
-              </p>
+        <section className="rounded-3xl border border-rose-100 bg-white/90 p-6 shadow-lg shadow-rose-100/60 backdrop-blur">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-slate-900">{menu ? "Katalog menu" : "Menunggu menu"}</h2>
+              <span className="rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-600">{menu ? "Siap dipesan" : "Segera hadir"}</span>
             </div>
-            <button
-              type="button"
-              onClick={bootstrap}
-              className="self-start rounded-md border border-slate-200 px-3 py-1.5 text-xs text-slate-700 transition hover:border-white/30"
-            >
-              Refresh
-            </button>
+            <p className="text-sm text-slate-600">
+              {menu
+                ? "Geser dan pilih produk. Kontrol jumlah dibuat besar supaya mudah disentuh."
+                : "Admin belum menautkan produk untuk tanggal ini."}
+            </p>
           </div>
 
+          <div className="my-6 h-px bg-gradient-to-r from-transparent via-rose-100 to-transparent" />
+
           {loading ? (
-            <p className="mt-4 text-sm text-slate-600">Loading menu…</p>
+            <p className="text-sm text-slate-600">Memuat menu...</p>
           ) : !menu ? (
-            <p className="mt-4 text-sm text-slate-600">
-              No published menu for tomorrow yet. Check back later.
-            </p>
+            <p className="mt-4 text-sm text-slate-600">Menu belum dirilis. Silakan cek kembali nanti.</p>
           ) : menuProducts.length === 0 ? (
-            <p className="mt-4 text-sm text-slate-600">
-              Products have not been linked to this menu. Reach out to an admin.
-            </p>
+            <p className="mt-4 text-sm text-slate-600">Produk belum ditautkan ke menu ini. Hubungi admin untuk bantuan.</p>
           ) : (
-            <form className="mt-6 space-y-6" onSubmit={handleSubmitOrder}>
-              <div className="grid gap-4">
-                {menuProducts.map((product) => (
-                  <div
-                    key={product.$id}
-                    className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/80 p-4"
-                  >
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <h3 className="text-lg font-semibold text-slate-900">
-                          {product.name}
-                        </h3>
-                        <p className="text-sm text-slate-600">
-                          {formatRupiah(product.price)}
-                        </p>
+            <form className="flex flex-col gap-6" onSubmit={handleSubmitOrder}>
+              <div className="grid gap-4 sm:grid-cols-2">
+                {menuProducts.map((product) => {
+                  const quantity = Number(quantities[product.$id]) || 0;
+                  const noteIsOpen = Boolean(noteExpanded[product.$id]);
+                  return (
+                    <article
+                      key={product.$id}
+                      className="group flex h-full flex-col gap-4 overflow-hidden rounded-3xl border border-rose-100 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-rose-200 hover:shadow-md focus-within:border-emerald-300 focus-within:shadow-emerald-100"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1">
+                          <h3 className="text-lg font-semibold text-slate-900">{product.name}</h3>
+                          <p className="text-sm font-medium text-emerald-600">{formatRupiah(product.price)}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => adjustQuantity(product.$id, 1)}
+                          className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-slate-700"
+                        >
+                          {quantity > 0 ? "Tambah lagi" : "Tambah"}
+                        </button>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-slate-700">
-                        <span className="sr-only sm:not-sr-only">Quantity</span>
-                        <div className="flex items-center gap-1">
+
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center justify-between rounded-2xl border border-rose-100 bg-rose-50/70 px-3 py-2">
                           <button
                             type="button"
                             onClick={() => adjustQuantity(product.$id, -1)}
-                            className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-lg text-slate-900 transition hover:border-emerald-400 hover:text-emerald-300"
-                            aria-label={`Kurangi ${product.name}`}
+                            className="flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-white text-lg font-semibold text-slate-700 shadow-sm transition hover:border-emerald-200 hover:text-emerald-500"
+                            aria-label={"Kurangi " + product.name}
                           >
                             -
                           </button>
-                          <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            value={quantities[product.$id] ?? 0}
-                            onChange={(event) =>
-                              handleQuantityChange(
-                                product.$id,
-                                event.target.value
-                              )
-                            }
-                            className="h-9 w-16 rounded-md border border-slate-200 bg-white px-3 text-center text-slate-900 outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-300/40"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                          />
+                          <div className="flex flex-col items-center">
+                            <span className="text-xs uppercase tracking-wide text-slate-400">Jumlah</span>
+                            <input
+                              type="number"
+                              min="0"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={quantity}
+                              onChange={(event) => handleQuantityChange(product.$id, event.target.value)}
+                              className="h-10 w-16 rounded-xl border border-transparent bg-white text-center text-lg font-semibold text-slate-900 outline-none ring-2 ring-transparent transition focus:border-emerald-200 focus:ring-emerald-200"
+                            />
+                          </div>
                           <button
                             type="button"
                             onClick={() => adjustQuantity(product.$id, 1)}
-                            className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 bg-white text-lg text-slate-900 transition hover:border-emerald-400 hover:text-emerald-300"
-                            aria-label={`Tambah ${product.name}`}
+                            className="flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-white text-lg font-semibold text-slate-700 shadow-sm transition hover:border-emerald-200 hover:text-emerald-500"
+                            aria-label={"Tambah " + product.name}
                           >
                             +
                           </button>
                         </div>
-                      </div>
-                    </div>
 
-                    <label className="flex flex-col gap-1 text-sm text-slate-700">
-                      <span>Catatan (opsional)</span>
-                      <textarea
-                        rows={2}
-                        value={notesByProduct[product.$id] ?? ""}
-                        onChange={(event) =>
-                          handleNoteChange(product.$id, event.target.value)
-                        }
-                        placeholder="Contoh: tanpa gula, ekstra es"
-                        className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-500/30"
-                      />
-                    </label>
-                  </div>
-                ))}
+                        <div className="flex flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={() => toggleNoteSection(product.$id)}
+                            className="flex items-center justify-between rounded-xl border border-rose-100 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-rose-200"
+                          >
+                            <span>Catatan untuk dapur</span>
+                            <span className="text-slate-400">{noteIsOpen ? "Tutup" : "Tambah"}</span>
+                          </button>
+                          {noteIsOpen ? (
+                            <textarea
+                              rows={2}
+                              value={notesByProduct[product.$id] ?? ""}
+                              onChange={(event) => handleNoteChange(product.$id, event.target.value)}
+                              placeholder="Contoh: tanpa gula, ekstra es"
+                              className="w-full rounded-xl border border-rose-100 bg-rose-50/70 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-emerald-200 focus:ring-2 focus:ring-emerald-200/60"
+                            />
+                          ) : null}
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
 
               {orderError ? (
-                <div className="rounded-lg border border-pink-500/40 bg-rose-50 px-4 py-3 text-sm text-pink-200">
-                  {orderError}
-                </div>
+                <div className="rounded-2xl border border-pink-300 bg-rose-50/90 px-4 py-3 text-sm text-rose-700">{orderError}</div>
               ) : null}
 
               {orderSuccess ? (
-                <div className="rounded-lg border border-emerald-500/40 bg-emerald-50 px-4 py-3 text-sm text-emerald-200">
-                  {orderSuccess}
-                </div>
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-700">{orderSuccess}</div>
               ) : null}
 
-              <button
-                type="submit"
-                disabled={savingOrder}
-                className="inline-flex items-center justify-center rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-900 shadow shadow-emerald-200/40 transition hover:bg-emerald-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-200 disabled:cursor-not-allowed disabled:bg-emerald-500/50"
-              >
-                {savingOrder ? "Submitting…" : "Place order"}
-              </button>
+              <div className="sticky inset-x-0 bottom-4 -mx-4 flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white px-4 py-4 shadow-lg shadow-slate-300/30 sm:-mx-6 sm:px-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-slate-600">
+                    {hasSelection ? `${selectedTotals.totalQuantity} item dipilih` : "Belum ada item yang dipilih"}
+                  </span>
+                  <span className="text-lg font-semibold text-slate-900">{hasSelection ? formatRupiah(selectedTotals.totalAmount) : "Rp0"}</span>
+                </div>
+                <button
+                  type="submit"
+                  disabled={savingOrder || !hasSelection}
+                  className="inline-flex w-full items-center justify-center rounded-full bg-emerald-500 px-5 py-3 text-sm font-semibold text-slate-900 shadow-md shadow-emerald-200/60 transition hover:bg-emerald-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 disabled:cursor-not-allowed disabled:bg-emerald-500/50"
+                >
+                  {savingOrder ? "Mengirim pesanan..." : "Kirim pesanan"}
+                </button>
+              </div>
             </form>
           )}
         </section>

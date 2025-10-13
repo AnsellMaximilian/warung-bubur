@@ -2,7 +2,11 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router";
 import { Query } from "appwrite";
-import { useQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { databases } from "../lib/appwrite.js";
 import { formatMenuDate } from "../lib/utils.js";
 import { formatRupiah } from "../lib/formatters.js";
@@ -32,11 +36,20 @@ export default function AdminOrders({
   const navigate = useNavigate();
 
   const [expandedOrders, setExpandedOrders] = useState([]);
+  const [updatingOrderId, setUpdatingOrderId] = useState("");
+  const [actionError, setActionError] = useState("");
 
-  const configReady = useMemo(
-    () => Boolean(databaseId && ordersCollectionId),
-    [],
-  );
+  const configReady = Boolean(databaseId && ordersCollectionId);
+
+  const ordersQueryKey = [
+    "orders",
+    databaseId,
+    ordersCollectionId,
+    orderItemsCollectionId,
+    canSummarizeOrders,
+  ];
+
+  const queryClient = useQueryClient();
 
   const {
     data: orders = [],
@@ -45,13 +58,7 @@ export default function AdminOrders({
     error: ordersError,
     refetch: refetchOrders,
   } = useQuery({
-    queryKey: [
-      "orders",
-      databaseId,
-      ordersCollectionId,
-      orderItemsCollectionId,
-      canSummarizeOrders,
-    ],
+    queryKey: ordersQueryKey,
     enabled: configReady,
     queryFn: async () => {
       try {
@@ -130,12 +137,57 @@ export default function AdminOrders({
     [orders]
   );
 
+  const refreshOrders = () => refetchOrders({ throwOnError: false });
+
+  const markOrderPaid = useMutation({
+    mutationFn: async (orderId) => {
+      if (!orderId) {
+        throw new Error("Order identifier missing.");
+      }
+      if (!databaseId || !ordersCollectionId) {
+        throw new Error("Orders collection is not configured.");
+      }
+      const updatedOrder = await databases.updateDocument(
+        databaseId,
+        ordersCollectionId,
+        orderId,
+        { payment: true },
+      );
+      return updatedOrder;
+    },
+    onMutate: (orderId) => {
+      setActionError("");
+      setUpdatingOrderId(orderId);
+    },
+    onSuccess: (updatedOrder) => {
+      if (configReady) {
+        queryClient.setQueryData(ordersQueryKey, (current) => {
+          if (!Array.isArray(current)) return current;
+          return current.map((order) =>
+            order.$id === updatedOrder.$id
+              ? { ...order, ...updatedOrder, payment: true }
+              : order,
+          );
+        });
+      }
+      refreshOrders();
+    },
+    onError: (err) => {
+      const message =
+        err?.message ||
+        "Unable to update payment status. Confirm permissions and try again.";
+      setActionError(message);
+    },
+    onSettled: () => {
+      setUpdatingOrderId("");
+    },
+  });
+
   useEffect(() => {
     setExpandedOrders([]);
   }, [orderIdsKey]);
 
   const loading = ordersPending || (ordersFetching && orders.length === 0);
-  const refreshOrders = () => refetchOrders({ throwOnError: false });
   const loadError = ordersError?.message ?? "";
 
   const toggleOrderExpanded = (orderId) => {
@@ -151,6 +203,11 @@ export default function AdminOrders({
       event.preventDefault();
       toggleOrderExpanded(orderId);
     }
+  };
+
+  const handleMarkAsPaid = (event, orderId) => {
+    event.stopPropagation();
+    markOrderPaid.mutate(orderId);
   };
 
   if (!configReady) {
@@ -251,6 +308,11 @@ export default function AdminOrders({
             {loadError}
           </p>
         ) : null}
+        {actionError ? (
+          <p className="rounded-2xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+            {actionError}
+          </p>
+        ) : null}
 
         {loading ? (
           <p className="text-sm text-slate-300">Loading orders…</p>
@@ -328,9 +390,27 @@ export default function AdminOrders({
                               Paid
                             </span>
                           ) : (
-                            <span className="rounded-md bg-amber-500/20 px-2 py-1 text-xs text-amber-200">
-                              Unpaid
-                            </span>
+                            <div className="flex flex-col gap-2">
+                              <span className="inline-flex w-fit rounded-md bg-amber-500/20 px-2 py-1 text-xs text-amber-200">
+                                Unpaid
+                              </span>
+                              <button
+                                type="button"
+                                className="w-fit rounded-md border border-white/10 px-3 py-1 text-xs font-medium text-white transition hover:border-white/30 disabled:cursor-not-allowed disabled:opacity-70"
+                                onClick={(event) =>
+                                  handleMarkAsPaid(event, order.$id)
+                                }
+                                disabled={
+                                  markOrderPaid.isPending &&
+                                  updatingOrderId === order.$id
+                                }
+                              >
+                                {markOrderPaid.isPending &&
+                                updatingOrderId === order.$id
+                                  ? "Marking..."
+                                  : "Mark as paid"}
+                              </button>
+                            </div>
                           )}
                         </td>
                         <td className="px-4 py-3 text-xs text-slate-300">

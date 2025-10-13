@@ -33,7 +33,7 @@ export default function AdminOrders({
 
   const configReady = useMemo(
     () => Boolean(databaseId && ordersCollectionId),
-    [],
+    []
   );
 
   const {
@@ -60,7 +60,7 @@ export default function AdminOrders({
             Query.orderAsc("payment"),
             Query.orderDesc("$updatedAt"),
             Query.limit(200),
-          ],
+          ]
         );
 
         const normalizedOrders = ordersResponse.documents.map((order) => ({
@@ -78,7 +78,7 @@ export default function AdminOrders({
         const itemsResponse = await databases.listDocuments(
           databaseId,
           orderItemsCollectionId,
-          [Query.equal("orderId", orderIds), Query.limit(500)],
+          [Query.equal("orderId", orderIds), Query.limit(500)]
         );
 
         const itemsByOrder = itemsResponse.documents.reduce((acc, item) => {
@@ -104,7 +104,7 @@ export default function AdminOrders({
               acc.amount += quantity * price;
               return acc;
             },
-            { quantity: 0, amount: 0 },
+            { quantity: 0, amount: 0 }
           );
           return {
             ...order,
@@ -123,9 +123,14 @@ export default function AdminOrders({
     },
   });
 
+  const orderIdsKey = useMemo(
+    () => (orders ?? []).map((o) => o.$id).join("|"),
+    [orders]
+  );
+
   useEffect(() => {
     setExpandedOrders([]);
-  }, [orders]);
+  }, [orderIdsKey]);
 
   const loading = ordersPending || (ordersFetching && orders.length === 0);
   const refreshOrders = () => refetchOrders({ throwOnError: false });
@@ -135,7 +140,7 @@ export default function AdminOrders({
     setExpandedOrders((current) =>
       current.includes(orderId)
         ? current.filter((id) => id !== orderId)
-        : [...current, orderId],
+        : [...current, orderId]
     );
   };
 

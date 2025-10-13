@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { Query } from "appwrite";
+import { useQuery } from "@tanstack/react-query";
 import { databases } from "../lib/appwrite.js";
 import { formatMenuDate } from "../lib/utils.js";
 import { formatRupiah } from "../lib/formatters.js";
@@ -13,19 +14,8 @@ const orderItemsCollectionId = import.meta.env
 const canSummarizeOrders = Boolean(orderItemsCollectionId);
 
 const extractCustomerName = (order) => {
-  if (order.userName) {
-    return order.userName;
-  }
-
-  const userInfo = order.userId;
-  if (userInfo && typeof userInfo === "object") {
-    return (
-      userInfo.name ||
-      userInfo.email ||
-      userInfo.username ||
-      userInfo.$id ||
-      "Unknown customer"
-    );
+  if (typeof order.userProfile.name === "string") {
+    return order.userProfile.name;
   }
 
   if (typeof order.userId === "string") {
@@ -39,9 +29,6 @@ export default function AdminOrders({
   onNavigate = () => {},
   onLogout = () => {},
 }) {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [expandedOrders, setExpandedOrders] = useState([]);
 
   const configReady = useMemo(
@@ -49,95 +36,100 @@ export default function AdminOrders({
     [],
   );
 
-  const loadOrders = async () => {
-    if (!configReady) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    try {
-      const ordersResponse = await databases.listDocuments(
-        databaseId,
-        ordersCollectionId,
-        [
-          Query.orderAsc("payment"),
-          Query.orderDesc("$updatedAt"),
-          Query.limit(200),
-        ],
-      );
-
-      const normalizedOrders = ordersResponse.documents.map((order) => ({
-        ...order,
-        customerName: extractCustomerName(order),
-        summary: { quantity: 0, amount: 0 },
-        items: [],
-      }));
-
-      if (!canSummarizeOrders || normalizedOrders.length === 0) {
-        setOrders(normalizedOrders);
-        setExpandedOrders([]);
-        return;
-      }
-
-      const orderIds = normalizedOrders.map((order) => order.$id);
-      const itemsResponse = await databases.listDocuments(
-        databaseId,
-        orderItemsCollectionId,
-        [Query.equal("orderId", orderIds), Query.limit(500)],
-      );
-
-      const itemsByOrder = itemsResponse.documents.reduce((acc, item) => {
-        const relatedOrderId =
-          item.orderId && typeof item.orderId === "object"
-            ? item.orderId.$id
-            : item.orderId;
-        if (!relatedOrderId) return acc;
-        if (!acc.has(relatedOrderId)) {
-          acc.set(relatedOrderId, []);
-        }
-        acc.get(relatedOrderId).push(item);
-        return acc;
-      }, new Map());
-
-      const enrichedOrders = normalizedOrders.map((order) => {
-        const orderItems = itemsByOrder.get(order.$id) ?? [];
-        const totals = orderItems.reduce(
-          (acc, item) => {
-            const quantity = Number(item.quantity) || 0;
-            const price = Number(item.price) || 0;
-            acc.quantity += quantity;
-            acc.amount += quantity * price;
-            return acc;
-          },
-          { quantity: 0, amount: 0 },
+  const {
+    data: orders = [],
+    isPending: ordersPending,
+    isFetching: ordersFetching,
+    error: ordersError,
+    refetch: refetchOrders,
+  } = useQuery({
+    queryKey: [
+      "orders",
+      databaseId,
+      ordersCollectionId,
+      orderItemsCollectionId,
+      canSummarizeOrders,
+    ],
+    enabled: configReady,
+    queryFn: async () => {
+      try {
+        const ordersResponse = await databases.listDocuments(
+          databaseId,
+          ordersCollectionId,
+          [
+            Query.orderAsc("payment"),
+            Query.orderDesc("$updatedAt"),
+            Query.limit(200),
+          ],
         );
-        return {
-          ...order,
-          summary: totals,
-          items: orderItems,
-        };
-      });
 
-      setOrders(enrichedOrders);
-      setExpandedOrders([]);
-    } catch (err) {
-      const message =
-        err?.message ||
-        "Unable to load orders. Confirm database permissions and IDs.";
-      setError(message);
-      setOrders([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+        const normalizedOrders = ordersResponse.documents.map((order) => ({
+          ...order,
+          customerName: extractCustomerName(order),
+          summary: { quantity: 0, amount: 0 },
+          items: [],
+        }));
+
+        if (!canSummarizeOrders || normalizedOrders.length === 0) {
+          return normalizedOrders;
+        }
+
+        const orderIds = normalizedOrders.map((order) => order.$id);
+        const itemsResponse = await databases.listDocuments(
+          databaseId,
+          orderItemsCollectionId,
+          [Query.equal("orderId", orderIds), Query.limit(500)],
+        );
+
+        const itemsByOrder = itemsResponse.documents.reduce((acc, item) => {
+          const relatedOrderId =
+            item.orderId && typeof item.orderId === "object"
+              ? item.orderId.$id
+              : item.orderId;
+          if (!relatedOrderId) return acc;
+          if (!acc.has(relatedOrderId)) {
+            acc.set(relatedOrderId, []);
+          }
+          acc.get(relatedOrderId).push(item);
+          return acc;
+        }, new Map());
+
+        const enrichedOrders = normalizedOrders.map((order) => {
+          const orderItems = itemsByOrder.get(order.$id) ?? [];
+          const totals = orderItems.reduce(
+            (acc, item) => {
+              const quantity = Number(item.quantity) || 0;
+              const price = Number(item.price) || 0;
+              acc.quantity += quantity;
+              acc.amount += quantity * price;
+              return acc;
+            },
+            { quantity: 0, amount: 0 },
+          );
+          return {
+            ...order,
+            summary: totals,
+            items: orderItems,
+          };
+        });
+
+        return enrichedOrders;
+      } catch (err) {
+        const message =
+          err?.message ||
+          "Unable to load orders. Confirm database permissions and IDs.";
+        throw new Error(message);
+      }
+    },
+  });
 
   useEffect(() => {
-    loadOrders();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [configReady]);
+    setExpandedOrders([]);
+  }, [orders]);
+
+  const loading = ordersPending || (ordersFetching && orders.length === 0);
+  const refreshOrders = () => refetchOrders({ throwOnError: false });
+  const loadError = ordersError?.message ?? "";
 
   const toggleOrderExpanded = (orderId) => {
     setExpandedOrders((current) =>
@@ -225,7 +217,7 @@ export default function AdminOrders({
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
-              onClick={loadOrders}
+              onClick={refreshOrders}
               className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white transition hover:border-white/30"
             >
               Refresh
@@ -247,9 +239,9 @@ export default function AdminOrders({
           </div>
         </header>
 
-        {error ? (
+        {loadError ? (
           <p className="rounded-2xl border border-pink-500/40 bg-pink-500/10 px-4 py-3 text-sm text-pink-200">
-            {error}
+            {loadError}
           </p>
         ) : null}
 

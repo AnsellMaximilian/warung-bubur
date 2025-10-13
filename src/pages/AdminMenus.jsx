@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { ID, Query } from "appwrite";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { databases } from "../lib/appwrite.js";
 import { formatRupiah } from "../lib/formatters.js";
 import { formatMenuDate } from "../lib/utils.js";
@@ -24,10 +25,9 @@ export default function AdminMenus({
   onNavigate = () => {},
   onLogout = () => {},
 }) {
-  const [products, setProducts] = useState([]);
-  const [menus, setMenus] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const queryClient = useQueryClient();
+  const productsQueryKey = ["products", databaseId, productsCollectionId];
+  const menusQueryKey = ["menus", databaseId, menusCollectionId];
   const [form, setForm] = useState(defaultMenuForm);
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -39,56 +39,75 @@ export default function AdminMenus({
     [],
   );
 
-  const fetchProducts = async () => {
-    try {
-      const response = await databases.listDocuments(
-        databaseId,
-        productsCollectionId,
-        [Query.orderAsc("name")],
-      );
-      setProducts(response.documents);
-    } catch (err) {
-      const message =
-        err?.message ||
-        "Unable to load products. Verify collection permissions and IDs.";
-      setError(message);
-    }
-  };
+  const {
+    data: products = [],
+    isPending: productsPending,
+    isFetching: productsFetching,
+    error: productsError,
+    refetch: refetchProducts,
+  } = useQuery({
+    queryKey: productsQueryKey,
+    enabled: isConfigReady,
+    queryFn: async () => {
+      try {
+        const response = await databases.listDocuments(
+          databaseId,
+          productsCollectionId,
+          [Query.orderAsc("name")],
+        );
+        return response.documents;
+      } catch (err) {
+        const message =
+          err?.message ||
+          "Unable to load products. Verify collection permissions and IDs.";
+        throw new Error(message);
+      }
+    },
+  });
 
-  const fetchMenus = async () => {
-    try {
-      const response = await databases.listDocuments(
-        databaseId,
-        menusCollectionId,
-        [Query.orderAsc("menuDate")],
-      );
-      setMenus(response.documents);
-    } catch (err) {
-      const message =
-        err?.message ||
-        "Unable to load menus. Confirm collection permissions and IDs.";
-      setError(message);
-    }
-  };
+  const {
+    data: menus = [],
+    isPending: menusPending,
+    isFetching: menusFetching,
+    error: menusError,
+    refetch: refetchMenus,
+  } = useQuery({
+    queryKey: menusQueryKey,
+    enabled: isConfigReady,
+    queryFn: async () => {
+      try {
+        const response = await databases.listDocuments(
+          databaseId,
+          menusCollectionId,
+          [Query.orderAsc("menuDate")],
+        );
+        return response.documents;
+      } catch (err) {
+        const message =
+          err?.message ||
+          "Unable to load menus. Confirm collection permissions and IDs.";
+        throw new Error(message);
+      }
+    },
+  });
 
-  const bootstrap = async () => {
-    if (!isConfigReady) {
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    setError("");
-
-    await Promise.all([fetchProducts(), fetchMenus()]);
-
-    setLoading(false);
-  };
-
-  useEffect(() => {
-    bootstrap();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const loading =
+    productsPending ||
+    menusPending ||
+    ((productsFetching || menusFetching) && menus.length === 0);
+  const refreshAll = () =>
+    Promise.all([
+      refetchProducts({ throwOnError: false }),
+      refetchMenus({ throwOnError: false }),
+    ]);
+  const loadError =
+    productsError?.message || menusError?.message || "";
+  const sortMenusByDate = (list) =>
+    [...list].sort((a, b) => {
+      const aTime = a?.menuDate ? new Date(a.menuDate).getTime() : 0;
+      const bTime = b?.menuDate ? new Date(b.menuDate).getTime() : 0;
+      return aTime - bTime;
+    });
 
   const toDateInputValue = (raw) => {
     if (!raw) return "";
@@ -173,7 +192,7 @@ export default function AdminMenus({
     setSaving(true);
 
     try {
-      await databases.createDocument(
+      const createdMenu = await databases.createDocument(
         databaseId,
         menusCollectionId,
         ID.unique(),
@@ -184,7 +203,18 @@ export default function AdminMenus({
         },
       );
       setForm(defaultMenuForm());
-      await fetchMenus();
+      if (isConfigReady) {
+        queryClient.setQueryData(menusQueryKey, (current) => {
+          const base = current && Array.isArray(current) ? current : [];
+          const exists = base.some((menu) => menu.$id === createdMenu.$id);
+          const merged = exists
+            ? base.map((menu) =>
+                menu.$id === createdMenu.$id ? createdMenu : menu,
+              )
+            : [...base, createdMenu];
+          return sortMenusByDate(merged);
+        });
+      }
     } catch (err) {
       const message =
         err?.message ||
@@ -234,7 +264,7 @@ export default function AdminMenus({
     setSaving(true);
 
     try {
-      await databases.updateDocument(
+      const updatedMenu = await databases.updateDocument(
         databaseId,
         menusCollectionId,
         editingMenu.id,
@@ -245,7 +275,17 @@ export default function AdminMenus({
         },
       );
       setEditingMenu(null);
-      await fetchMenus();
+      if (isConfigReady) {
+        queryClient.setQueryData(menusQueryKey, (current) => {
+          if (!current || !Array.isArray(current)) {
+            return [updatedMenu];
+          }
+          const updatedList = current.map((menu) =>
+            menu.$id === updatedMenu.$id ? updatedMenu : menu,
+          );
+          return sortMenusByDate(updatedList);
+        });
+      }
     } catch (err) {
       const message =
         err?.message ||
@@ -319,9 +359,9 @@ export default function AdminMenus({
           </div>
         </header>
 
-        {error ? (
+        {loadError ? (
           <section className="rounded-2xl border border-pink-500/40 bg-pink-500/10 p-6 text-sm text-pink-200 shadow-2xl backdrop-blur">
-            {error}
+            {loadError}
           </section>
         ) : null}
 
@@ -330,7 +370,7 @@ export default function AdminMenus({
             <h2 className="text-lg font-semibold text-white">Create menu</h2>
             <button
               type="button"
-              onClick={bootstrap}
+              onClick={refreshAll}
               className="rounded-md border border-white/10 px-3 py-1.5 text-xs text-slate-200 transition hover:border-white/30"
             >
               Refresh

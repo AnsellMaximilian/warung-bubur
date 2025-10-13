@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { Query } from "appwrite";
+import { useQuery } from "@tanstack/react-query";
 import { databases } from "../lib/appwrite.js";
 import { formatMenuDate } from "../lib/utils.js";
 import { formatRupiah } from "../lib/formatters.js";
@@ -23,78 +24,77 @@ export default function AdminOrderItems({
   onLogout = () => {},
 }) {
   const [currentDate] = useState(() => getTodayDateString());
-  const [orders, setOrders] = useState([]);
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
   const configReady = useMemo(
-    () =>
-      Boolean(databaseId && ordersCollectionId && orderItemsCollectionId),
+    () => Boolean(databaseId && ordersCollectionId && orderItemsCollectionId),
     [],
   );
 
-  const loadTodayItems = async () => {
-    if (!configReady) {
-      setLoading(false);
-      return;
-    }
+  const {
+    data: orderItemsData,
+    isPending,
+    isFetching,
+    error: orderItemsError,
+    refetch: refetchOrderItems,
+  } = useQuery({
+    queryKey: [
+      "order-items",
+      databaseId,
+      ordersCollectionId,
+      orderItemsCollectionId,
+      currentDate,
+    ],
+    enabled: configReady,
+    queryFn: async () => {
+      try {
+        const ordersResponse = await databases.listDocuments(
+          databaseId,
+          ordersCollectionId,
+          [Query.greaterThanEqual("menuDate", currentDate), Query.limit(200)],
+        );
+        const orderDocs = ordersResponse.documents;
 
-    setLoading(true);
-    setError("");
+        if (orderDocs.length === 0) {
+          return { orders: orderDocs, items: [] };
+        }
 
-    try {
-      const ordersResponse = await databases.listDocuments(
-        databaseId,
-        ordersCollectionId,
-        [Query.equal("menuDate", currentDate), Query.limit(200)],
-      );
-      const orderDocs = ordersResponse.documents;
-      setOrders(orderDocs);
+        const orderIds = orderDocs.map((order) => order.$id);
+        const itemsResponse = await databases.listDocuments(
+          databaseId,
+          orderItemsCollectionId,
+          [Query.equal("orderId", orderIds), Query.limit(200)],
+        );
 
-      if (orderDocs.length === 0) {
-        setItems([]);
-        return;
+        const orderIndex = new Map(
+          orderDocs.map((order) => [order.$id, order]),
+        );
+
+        const decoratedItems = itemsResponse.documents.map((item) => {
+          const relatedOrderId =
+            item.orderId && typeof item.orderId === "object"
+              ? item.orderId.$id
+              : item.orderId;
+          return {
+            ...item,
+            relatedOrder: orderIndex.get(relatedOrderId) ?? null,
+          };
+        });
+
+        return { orders: orderDocs, items: decoratedItems };
+      } catch (err) {
+        const message =
+          err?.message ||
+          "Unable to load today's order items. Confirm database permissions and IDs.";
+        throw new Error(message);
       }
+    },
+  });
 
-      const orderIds = orderDocs.map((order) => order.$id);
-      const itemsResponse = await databases.listDocuments(
-        databaseId,
-        orderItemsCollectionId,
-        [Query.equal("orderId", orderIds), Query.limit(200)],
-      );
-
-      const orderIndex = new Map(
-        orderDocs.map((order) => [order.$id, order]),
-      );
-
-      const decoratedItems = itemsResponse.documents.map((item) => {
-        const relatedOrderId =
-          item.orderId && typeof item.orderId === "object"
-            ? item.orderId.$id
-            : item.orderId;
-        return {
-          ...item,
-          relatedOrder: orderIndex.get(relatedOrderId) ?? null,
-        };
-      });
-
-      setItems(decoratedItems);
-    } catch (err) {
-      const message =
-        err?.message ||
-        "Unable to load today's order items. Confirm database permissions and IDs.";
-      setError(message);
-      setItems([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadTodayItems();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [configReady, currentDate]);
+  const orders = orderItemsData?.orders ?? [];
+  const items = orderItemsData?.items ?? [];
+  const loading = isPending || (isFetching && items.length === 0);
+  const loadError = orderItemsError?.message ?? "";
+  const refreshOrderItems = () => refetchOrderItems({ throwOnError: false });
 
   if (!configReady) {
     return (
@@ -158,9 +158,7 @@ export default function AdminOrderItems({
               </span>
               <span>
                 Items recorded:{" "}
-                <span className="font-semibold text-white">
-                  {totalItems}
-                </span>
+                <span className="font-semibold text-white">{totalItems}</span>
               </span>
               <span>
                 Total quantity:{" "}
@@ -173,7 +171,7 @@ export default function AdminOrderItems({
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
-              onClick={loadTodayItems}
+              onClick={refreshOrderItems}
               className="rounded-lg border border-white/10 px-4 py-2 text-sm text-white transition hover:border-white/30"
             >
               Refresh
@@ -195,9 +193,9 @@ export default function AdminOrderItems({
           </div>
         </header>
 
-        {error ? (
+        {loadError ? (
           <p className="rounded-2xl border border-pink-500/40 bg-pink-500/10 px-4 py-3 text-sm text-pink-200">
-            {error}
+            {loadError}
           </p>
         ) : null}
 
@@ -231,11 +229,9 @@ export default function AdminOrderItems({
                       : item.orderId;
                   const customerId =
                     item.relatedOrder &&
-                    typeof item.relatedOrder.userId === "object"
-                      ? item.relatedOrder.userId?.$id ??
-                        item.relatedOrder.userId?.name ??
-                        ""
-                      : item.relatedOrder?.userId ?? "";
+                    typeof item.relatedOrder.userProfile === "object"
+                      ? (item.relatedOrder.userProfile.name ?? "")
+                      : (item.relatedOrder?.userId ?? "");
                   const paymentStatus = item.relatedOrder?.payment ?? false;
                   const quantity = Number(item.quantity) || 0;
                   const priceEach = Number(item.price) || 0;
@@ -257,12 +253,8 @@ export default function AdminOrderItems({
                         {productName || "Unnamed product"}
                       </td>
                       <td className="px-4 py-3">{quantity}</td>
-                      <td className="px-4 py-3">
-                        {formatRupiah(priceEach)}
-                      </td>
-                      <td className="px-4 py-3">
-                        {formatRupiah(total)}
-                      </td>
+                      <td className="px-4 py-3">{formatRupiah(priceEach)}</td>
+                      <td className="px-4 py-3">{formatRupiah(total)}</td>
                       <td className="px-4 py-3">
                         {paymentStatus ? (
                           <span className="rounded-md bg-emerald-500/20 px-2 py-1 text-xs text-emerald-200">

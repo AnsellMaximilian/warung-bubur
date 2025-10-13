@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import PropTypes from "prop-types";
 import { ID, Query } from "appwrite";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { databases } from "../lib/appwrite.js";
 import { formatRupiah } from "../lib/formatters.js";
 
@@ -18,9 +19,8 @@ export default function AdminProducts({
   onNavigate = () => {},
   onLogout = () => {},
 }) {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const queryClient = useQueryClient();
+  const productsQueryKey = ["products", databaseId, productsCollectionId];
   const [saving, setSaving] = useState(false);
   const [createForm, setCreateForm] = useState(() => ({ ...emptyProductForm }));
   const [createError, setCreateError] = useState("");
@@ -32,35 +32,35 @@ export default function AdminProducts({
     [],
   );
 
-  const loadProducts = async () => {
-    if (!isConfigReady) {
-      setLoading(false);
-      return;
-    }
+  const {
+    data: products = [],
+    isPending: productsPending,
+    isFetching: productsFetching,
+    error: productsError,
+    refetch: refetchProducts,
+  } = useQuery({
+    queryKey: productsQueryKey,
+    enabled: isConfigReady,
+    queryFn: async () => {
+      try {
+        const response = await databases.listDocuments(
+          databaseId,
+          productsCollectionId,
+          [Query.orderAsc("$createdAt")],
+        );
+        return response.documents;
+      } catch (err) {
+        const message =
+          err?.message ||
+          "Unable to load products. Verify collection permissions and IDs.";
+        throw new Error(message);
+      }
+    },
+  });
 
-    setLoading(true);
-    setError("");
-    try {
-      const response = await databases.listDocuments(
-        databaseId,
-        productsCollectionId,
-        [Query.orderAsc("$createdAt")],
-      );
-      setProducts(response.documents);
-    } catch (err) {
-      const message =
-        err?.message ||
-        "Unable to load products. Verify collection permissions and IDs.";
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadProducts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const loading = productsPending || (productsFetching && products.length === 0);
+  const refreshProducts = () => refetchProducts({ throwOnError: false });
+  const loadError = productsError?.message ?? "";
 
   const normalizeStatusValue = (value) => {
     if (typeof value === "boolean") return value;
@@ -115,7 +115,7 @@ export default function AdminProducts({
     setSaving(true);
 
     try {
-      await databases.createDocument(
+      const createdProduct = await databases.createDocument(
         databaseId,
         productsCollectionId,
         ID.unique(),
@@ -126,7 +126,22 @@ export default function AdminProducts({
         },
       );
       setCreateForm({ ...emptyProductForm });
-      await loadProducts();
+      if (isConfigReady) {
+        queryClient.setQueryData(productsQueryKey, (current) => {
+          if (!current || !Array.isArray(current)) {
+            return [createdProduct];
+          }
+          const exists = current.some(
+            (product) => product.$id === createdProduct.$id,
+          );
+          if (exists) {
+            return current.map((product) =>
+              product.$id === createdProduct.$id ? createdProduct : product,
+            );
+          }
+          return [...current, createdProduct];
+        });
+      }
     } catch (err) {
       const message =
         err?.message ||
@@ -174,7 +189,7 @@ export default function AdminProducts({
 
     setSaving(true);
     try {
-      await databases.updateDocument(
+      const updatedProduct = await databases.updateDocument(
         databaseId,
         productsCollectionId,
         editingProduct.id,
@@ -185,7 +200,16 @@ export default function AdminProducts({
         },
       );
       setEditingProduct(null);
-      await loadProducts();
+      if (isConfigReady) {
+        queryClient.setQueryData(productsQueryKey, (current) => {
+          if (!current || !Array.isArray(current)) {
+            return [updatedProduct];
+          }
+          return current.map((product) =>
+            product.$id === updatedProduct.$id ? updatedProduct : product,
+          );
+        });
+      }
     } catch (err) {
       const message =
         err?.message ||
@@ -324,16 +348,16 @@ export default function AdminProducts({
             </h2>
             <button
               type="button"
-              onClick={loadProducts}
+              onClick={refreshProducts}
               className="rounded-md border border-white/10 px-3 py-1.5 text-xs text-slate-200 transition hover:border-white/30"
             >
               Refresh
             </button>
           </div>
 
-          {error ? (
+          {loadError ? (
             <p className="mt-4 rounded-lg border border-pink-500/40 bg-pink-500/10 px-4 py-3 text-sm text-pink-200">
-              {error}
+              {loadError}
             </p>
           ) : null}
 

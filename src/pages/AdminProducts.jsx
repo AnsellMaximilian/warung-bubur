@@ -5,6 +5,14 @@ import { ID, Query } from "appwrite";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { databases } from "../lib/appwrite.js";
 import { formatRupiah } from "../lib/formatters.js";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const databaseId = import.meta.env.VITE_APPWRITE_DATABASE_ID;
 const productsCollectionId = import.meta.env
@@ -420,74 +428,86 @@ export default function AdminProducts({
           )}
         </section>
 
-        {editingProduct ? (
-          <section className="rounded-2xl border border-white/10 bg-slate-900/80 p-8 shadow-2xl backdrop-blur">
-            <h2 className="text-lg font-semibold text-white">Edit product</h2>
-            <form
-              className="mt-4 grid gap-4 sm:grid-cols-[2fr_1fr_1fr]"
-              onSubmit={handleUpdate}
-            >
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-slate-200">Name</span>
-                <input
-                  type="text"
-                  value={editingProduct.name}
-                  onChange={updateEditField("name")}
-                  className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-white outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/40"
-                  required
-                />
-              </label>
+        <Dialog
+          open={Boolean(editingProduct)}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              handleEditCancel();
+            }
+          }}
+        >
+          <DialogContent className="border-white/10 bg-slate-900/95 text-slate-100 shadow-2xl backdrop-blur-lg sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle className="text-white">Edit product</DialogTitle>
+              <DialogDescription className="text-slate-300">
+                Update product details and save your changes.
+              </DialogDescription>
+            </DialogHeader>
 
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-slate-200">Price</span>
-                <input
-                  type="number"
-                  step="1"
-                  min="0"
-                  value={editingProduct.price}
-                  onChange={updateEditField("price")}
-                  className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-white outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/40"
-                  required
-                />
-              </label>
+            {editingProduct ? (
+              <form className="mt-2 grid gap-4" onSubmit={handleUpdate}>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-slate-200">Name</span>
+                  <input
+                    type="text"
+                    value={editingProduct.name}
+                    onChange={updateEditField("name")}
+                    className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-white outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/40"
+                    required
+                  />
+                </label>
 
-              <label className="flex flex-col gap-1 text-sm">
-                <span className="text-slate-200">Status</span>
-                <select
-                  value={editingProduct.status ? "true" : "false"}
-                  onChange={updateEditField("status")}
-                  className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-white outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/40"
-                >
-                  <option value="true">Active</option>
-                  <option value="false">Inactive</option>
-                </select>
-              </label>
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-slate-200">Price</span>
+                  <input
+                    type="number"
+                    step="1"
+                    min="0"
+                    value={editingProduct.price}
+                    onChange={updateEditField("price")}
+                    className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-white outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/40"
+                    required
+                  />
+                </label>
 
-              {editError ? (
-                <div className="sm:col-span-3 rounded-lg border border-pink-500/40 bg-pink-500/10 px-4 py-3 text-sm text-pink-200">
-                  {editError}
-                </div>
-              ) : null}
+                <label className="flex flex-col gap-1 text-sm">
+                  <span className="text-slate-200">Status</span>
+                  <select
+                    value={editingProduct.status ? "true" : "false"}
+                    onChange={updateEditField("status")}
+                    className="rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-white outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/40"
+                  >
+                    <option value="true">Active</option>
+                    <option value="false">Inactive</option>
+                  </select>
+                </label>
 
-              <div className="sm:col-span-3 flex gap-3">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="inline-flex items-center justify-center rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow shadow-indigo-500/30 transition hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-200 disabled:cursor-not-allowed disabled:bg-indigo-500/50"
-                >
-                  {saving ? "Updating..." : "Save changes"}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleEditCancel}
-                  className="rounded-lg border border-white/20 px-4 py-2 text-sm text-slate-200 transition hover:border-white/40"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </section>
-        ) : null}
+                {editError ? (
+                  <div className="rounded-lg border border-pink-500/40 bg-pink-500/10 px-4 py-3 text-sm text-pink-200">
+                    {editError}
+                  </div>
+                ) : null}
+
+                <DialogFooter className="flex-col gap-3 sm:flex-row sm:justify-end">
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="inline-flex items-center justify-center rounded-lg bg-indigo-500 px-4 py-2 text-sm font-semibold text-white shadow shadow-indigo-500/30 transition hover:bg-indigo-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-200 disabled:cursor-not-allowed disabled:bg-indigo-500/50"
+                  >
+                    {saving ? "Updating..." : "Save changes"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleEditCancel}
+                    className="rounded-lg border border-white/20 px-4 py-2 text-sm text-slate-200 transition hover:border-white/40"
+                  >
+                    Cancel
+                  </button>
+                </DialogFooter>
+              </form>
+            ) : null}
+          </DialogContent>
+        </Dialog>
       </div>
     </main>
   );
